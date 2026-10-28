@@ -17,5 +17,5 @@ class _PipelineScreenState extends State<PipelineScreen> {
       const Divider(height:1),
       Expanded(child:ListView(children:all.where((c)=>c.stage==stage).map((c)=>Card(margin:const EdgeInsets.all(8),child:ListTile(title:Text(c.fullName),subtitle:Text(c.country),trailing:PopupMenuButton<String>(onSelected:(v) async { await widget.repo.upsert(c.copyWithStage(v)); if(mounted)setState((){}); }, itemBuilder:(_)=>stages.map((v)=>PopupMenuItem(value:v,child:Text('Move to $v'))).toList())))).toList()))
     ])))).toList());
-  })),
+  }));
 }
