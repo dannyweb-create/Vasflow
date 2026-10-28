@@ -1,0 +1,28 @@
+name: vasflow
+description: VasFlow client, workflow, document and business management app.
+publish_to: "none"
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.7.0 <4.0.0"
+  flutter: ">=3.29.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  supabase_flutter: ^2.8.4
+  shared_preferences: ^2.3.5
+  file_picker: ^8.1.7
+  intl: ^0.20.2
+  csv: ^6.0.0
+  uuid: ^4.5.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true

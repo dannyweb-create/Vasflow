@@ -1,0 +1,15 @@
+.dart_tool/
+.packages
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.env
+*.iml
+.idea/
+.vscode/
+# Never commit signing keys or local SDK paths
+*.jks
+*.keystore
+key.properties
+local.properties
