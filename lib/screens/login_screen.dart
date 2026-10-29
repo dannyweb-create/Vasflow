@@ -7,8 +7,7 @@ import 'forgot_password_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  final ValueChanged<bool> onThemeChanged;
-  const LoginScreen({super.key, required this.onThemeChanged});
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -43,7 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => homeFor(auth, widget.onThemeChanged),
+          builder: (_) => homeFor(auth),
         ),
       );
     } catch (e) {
@@ -57,7 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final scheme = Theme.of(context).colorScheme;
     return Scaffold(
       body: Center(
         child: SingleChildScrollView(
@@ -67,10 +66,20 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const Icon(
-                  Icons.travel_explore_rounded,
-                  size: 54,
-                  color: Color(0xFF3478F6),
+                Center(
+                  child: Container(
+                    width: 76,
+                    height: 76,
+                    decoration: BoxDecoration(
+                      color: scheme.primary,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: Icon(
+                      Icons.travel_explore_rounded,
+                      size: 42,
+                      color: scheme.onPrimary,
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 Text(
@@ -173,13 +182,6 @@ class _LoginScreenState extends State<LoginScreen> {
                     MaterialPageRoute(builder: (_) => const SignupScreen()),
                   ),
                   child: const Text('Create account'),
-                ),
-                const SizedBox(height: 20),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Dark mode'),
-                  value: isDark,
-                  onChanged: widget.onThemeChanged,
                 ),
               ],
             ),

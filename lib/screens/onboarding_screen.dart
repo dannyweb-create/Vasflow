@@ -7,12 +7,7 @@ import 'login_screen.dart';
 /// Shown after sign-in when the person does not belong to a workspace yet.
 class OnboardingScreen extends StatefulWidget {
   final AuthService auth;
-  final ValueChanged<bool> onThemeChanged;
-  const OnboardingScreen({
-    super.key,
-    required this.auth,
-    required this.onThemeChanged,
-  });
+  const OnboardingScreen({super.key, required this.auth});
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -41,7 +36,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(
-          builder: (_) => homeFor(widget.auth, widget.onThemeChanged),
+          builder: (_) => homeFor(widget.auth),
         ),
         (route) => false,
       );
@@ -58,9 +53,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     await widget.auth.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => LoginScreen(onThemeChanged: widget.onThemeChanged),
-      ),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
     );
   }

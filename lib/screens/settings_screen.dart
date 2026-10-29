@@ -2,16 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
+import '../theme/brand.dart';
+import '../theme/theme_controller.dart';
 import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   final AuthService auth;
-  final ValueChanged<bool> onThemeChanged;
-  const SettingsScreen({
-    super.key,
-    required this.auth,
-    required this.onThemeChanged,
-  });
+  const SettingsScreen({super.key, required this.auth});
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -77,10 +74,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
     await widget.auth.signOut();
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(
-        builder: (_) => LoginScreen(onThemeChanged: widget.onThemeChanged),
-      ),
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
       (route) => false,
+    );
+  }
+
+  IconData _themeIcon(AppThemeChoice choice) {
+    switch (choice) {
+      case AppThemeChoice.light:
+        return Icons.light_mode_outlined;
+      case AppThemeChoice.dark:
+        return Icons.dark_mode_outlined;
+      case AppThemeChoice.glass:
+        return Icons.blur_on;
+    }
+  }
+
+  Widget _appearanceSection() {
+    return ListenableBuilder(
+      listenable: ThemeController.instance,
+      builder: (context, _) {
+        final scheme = Theme.of(context).colorScheme;
+        final selected = ThemeController.instance.choice;
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(4, 8, 4, 8),
+              child: Text(
+                'Appearance',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            for (final choice in AppThemeChoice.values)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Card(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(18),
+                    side: BorderSide(
+                      color: choice == selected
+                          ? scheme.primary
+                          : scheme.outlineVariant,
+                      width: choice == selected ? 2 : 1,
+                    ),
+                  ),
+                  child: ListTile(
+                    leading: Icon(_themeIcon(choice)),
+                    title: Text(choice.label),
+                    subtitle: Text(choice.description),
+                    trailing: Icon(
+                      choice == selected
+                          ? Icons.radio_button_checked
+                          : Icons.radio_button_unchecked,
+                      color: choice == selected ? scheme.primary : null,
+                    ),
+                    onTap: () => ThemeController.instance.select(choice),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -150,12 +205,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          SwitchListTile(
-            title: const Text('Dark mode'),
-            subtitle: const Text('Switch between light and dark appearance'),
-            value: Theme.of(context).brightness == Brightness.dark,
-            onChanged: widget.onThemeChanged,
-          ),
+          const SizedBox(height: 8),
+          _appearanceSection(),
+          const SizedBox(height: 8),
           if (auth.isAdmin) _teamSection(),
           const ListTile(
             leading: Icon(Icons.security_outlined),

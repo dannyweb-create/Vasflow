@@ -48,6 +48,13 @@ tool/           prepare_android.sh (creates android/ and adds the INTERNET permi
 The `android/` folder is not stored in this repo; the workflow creates it on every
 build with `flutter create`.
 
+## Themes (Stage 1)
+
+Settings → Appearance has three themes: Light, Dark and Liquid Glass. The choice is
+saved on the phone. The brand colour is #0BA84A. Liquid Glass uses translucent panels,
+a light blur on the main cards, and a soft gradient behind every page. Check how it
+looks and performs on your own phone.
+
 ## Not done yet
 
 Changing a member's role or removing staff, document vault, payments,
