@@ -5,7 +5,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ClientRepository {
   final LocalStore local;
-  ClientRepository(this.local);
+  final String? workspaceId;
+  ClientRepository(this.local, {this.workspaceId});
 
   Future<List<ClientRecord>> all() async {
     if (!AppConfig.supabaseReady) return local.getClients();
@@ -25,7 +26,12 @@ class ClientRepository {
     if (i < 0) { cached.insert(0, record); } else { cached[i] = record; }
     await local.saveClients(cached);
     if (AppConfig.supabaseReady) {
-      await Supabase.instance.client.from('clients').upsert(record.toJson());
+      if (workspaceId == null) {
+        throw Exception('Join or create a workspace before saving clients.');
+      }
+      final payload = record.toJson();
+      payload['workspace_id'] = workspaceId;
+      await Supabase.instance.client.from('clients').upsert(payload);
     }
   }
 

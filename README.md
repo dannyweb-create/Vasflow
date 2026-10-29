@@ -24,13 +24,15 @@ real result is your own GitHub Actions run.
 If the run fails, open the red step, find the FIRST line that says `Error:` and send
 it. Do not send the whole log.
 
-## Supabase setup
+## Supabase setup (run BOTH SQL files, in this order)
 
 1. Create a Supabase project.
 2. SQL Editor → paste all of `supabase/schema.sql` → Run.
-3. Authentication → create/sign up your user, then make yourself admin with the
-   `update public.profiles ...` command at the bottom of `schema.sql`.
-4. Authentication → URL Configuration: set the Site URL. Configure custom SMTP for
+3. SQL Editor → paste all of `supabase/phase3_workspaces.sql` → Run. This adds
+   workspaces, Admin/Staff roles and invite codes.
+4. In the app: create an account, log in, and choose **Create workspace**. The person
+   who creates it is the Admin. Staff join with an invite code from Settings.
+5. Authentication → URL Configuration: set the Site URL. Configure custom SMTP for
    reliable password-reset emails.
 
 ## Project layout
@@ -46,9 +48,16 @@ tool/           prepare_android.sh (creates android/ and adds the INTERNET permi
 The `android/` folder is not stored in this repo; the workflow creates it on every
 build with `flutter create`.
 
+## Themes (Stage 1)
+
+Settings → Appearance has three themes: Light, Dark and Liquid Glass. The choice is
+saved on the phone. The brand colour is #0BA84A. Liquid Glass uses translucent panels,
+a light blur on the main cards, and a soft gradient behind every page. Check how it
+looks and performs on your own phone.
+
 ## Not done yet
 
-Workspace membership and shared staff access, invites, document vault, payments,
+Changing a member's role or removing staff, document vault, payments,
 real task storage, reports, offline sync queue, audit log, password-reset screen
 inside the app, AI assistant backend. The local cache on the phone is **not
 encrypted**.

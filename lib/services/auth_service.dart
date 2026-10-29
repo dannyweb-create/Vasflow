@@ -7,6 +7,11 @@ class AuthService {
   bool get online => AppConfig.supabaseReady;
 
   String _role = 'staff';
+  String? _workspaceId;
+  String _workspaceName = '';
+
+  bool get hasSession =>
+      online && Supabase.instance.client.auth.currentSession != null;
 
   String get currentEmail =>
       online ? (Supabase.instance.client.auth.currentUser?.email ?? '') : '';
@@ -14,6 +19,10 @@ class AuthService {
   /// Used only to show or hide buttons. Real permissions are enforced by
   /// Supabase Row Level Security on the server, never by this value.
   String get role => _role;
+  bool get isAdmin => _role == 'admin';
+  String? get workspaceId => _workspaceId;
+  String get workspaceName => _workspaceName;
+  bool get hasWorkspace => _workspaceId != null;
 
   void _requireOnline() {
     if (!online) {
@@ -29,7 +38,15 @@ class AuthService {
       return await action();
     } on AuthException catch (e) {
       throw Exception(e.message);
+    } on PostgrestException catch (e) {
+      throw Exception(e.message);
     }
+  }
+
+  Future<dynamic> _rpc(String function, [Map<String, dynamic>? params]) {
+    return _guard<dynamic>(
+      () async => await Supabase.instance.client.rpc(function, params: params),
+    );
   }
 
   Future<void> signIn(String identifier, String password) async {
@@ -41,24 +58,59 @@ class AuthService {
           ? auth.signInWithPassword(email: id, password: password)
           : auth.signInWithPassword(phone: id, password: password),
     );
-    await _loadRole();
+    await loadMembership();
   }
 
-  /// Reads this user's role from the `profiles` table. Defaults to 'staff'.
-  Future<void> _loadRole() async {
+  /// Reads which workspace this person belongs to and their role in it.
+  Future<void> loadMembership() async {
+    _requireOnline();
     _role = 'staff';
+    _workspaceId = null;
+    _workspaceName = '';
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return;
     try {
-      final user = Supabase.instance.client.auth.currentUser;
-      if (user == null) return;
       final row = await Supabase.instance.client
-          .from('profiles')
-          .select('role')
-          .eq('id', user.id)
+          .from('workspace_members')
+          .select('workspace_id, role, workspaces(name)')
+          .eq('user_id', user.id)
           .maybeSingle();
-      if (row != null && row['role'] == 'admin') _role = 'admin';
-    } catch (_) {
-      // Keep the safe default ('staff') if the profile cannot be read.
+      if (row == null) return;
+      _workspaceId = row['workspace_id'] as String?;
+      _role = row['role'] == 'admin' ? 'admin' : 'staff';
+      final ws = row['workspaces'];
+      if (ws is Map) _workspaceName = '${ws['name'] ?? ''}';
+    } on PostgrestException catch (e) {
+      throw Exception(
+        'Could not load your workspace: ${e.message}. '
+        'If you have not run phase3_workspaces.sql in Supabase yet, run it first.',
+      );
     }
+  }
+
+  Future<void> createWorkspace(String name) async {
+    _requireOnline();
+    await _rpc('create_workspace', {'p_name': name.trim()});
+    await loadMembership();
+  }
+
+  Future<void> joinWorkspace(String code) async {
+    _requireOnline();
+    await _rpc('redeem_invite', {'p_code': code.trim()});
+    await loadMembership();
+  }
+
+  /// Admin only (the server refuses anyone else). Returns the code once.
+  Future<String> createInvite() async {
+    _requireOnline();
+    final code = await _rpc('create_invite');
+    return '$code';
+  }
+
+  Future<List<Map<String, dynamic>>> listTeam() async {
+    _requireOnline();
+    final rows = await _rpc('list_team');
+    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
   Future<void> signUp({
@@ -87,6 +139,8 @@ class AuthService {
 
   Future<void> signOut() async {
     _role = 'staff';
+    _workspaceId = null;
+    _workspaceName = '';
     await LocalStore().clear();
     if (online) await Supabase.instance.client.auth.signOut();
   }

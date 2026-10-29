@@ -31,7 +31,7 @@ class ClientsScreen extends StatefulWidget {
 }
 
 class _ClientsScreenState extends State<ClientsScreen> {
-  final repo = ClientRepository(LocalStore());
+  late final repo = ClientRepository(LocalStore(), workspaceId: widget.auth.workspaceId);
   final search = TextEditingController();
   List<ClientRecord> clients = [];
   bool loading = true;
