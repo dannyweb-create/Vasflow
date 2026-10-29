@@ -6,7 +6,8 @@ import 'login_screen.dart';
 
 /// First screen of the app. If a saved session exists, skip the login screen.
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+  final ValueChanged<bool> onThemeChanged;
+  const AuthGate({super.key, required this.onThemeChanged});
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -30,7 +31,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     if (!auth.hasSession) {
-      return const LoginScreen();
+      return LoginScreen(onThemeChanged: widget.onThemeChanged);
     }
     return FutureBuilder<void>(
       future: _start,
@@ -60,7 +61,7 @@ class _AuthGateState extends State<AuthGate> {
             ),
           );
         }
-        return homeFor(auth);
+        return homeFor(auth, widget.onThemeChanged);
       },
     );
   }

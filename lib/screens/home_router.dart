@@ -6,9 +6,9 @@ import 'onboarding_screen.dart';
 
 /// Picks the first screen after sign-in: the dashboard if the person already
 /// belongs to a workspace, otherwise the workspace setup screen.
-Widget homeFor(AuthService auth) {
+Widget homeFor(AuthService auth, ValueChanged<bool> onThemeChanged) {
   if (auth.hasWorkspace) {
-    return DashboardScreen(auth: auth);
+    return DashboardScreen(auth: auth, onThemeChanged: onThemeChanged);
   }
-  return OnboardingScreen(auth: auth);
+  return OnboardingScreen(auth: auth, onThemeChanged: onThemeChanged);
 }
