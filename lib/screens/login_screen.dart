@@ -30,7 +30,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> login() async {
     if (id.text.trim().isEmpty || password.text.isEmpty) {
-      setState(() => error = 'Enter your email or phone number and your password.');
+      setState(
+        () => error = 'Enter your email or phone number and your password.',
+      );
       return;
     }
     setState(() {
@@ -40,11 +42,9 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await auth.signIn(id.text, password.text);
       if (!mounted) return;
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => homeFor(auth),
-        ),
-      );
+      Navigator.of(
+        context,
+      ).pushReplacement(MaterialPageRoute(builder: (_) => homeFor(auth)));
     } catch (e) {
       if (mounted) {
         setState(() => error = e.toString().replaceFirst('Exception: ', ''));
@@ -85,10 +85,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(
                   'VasFlow',
                   textAlign: TextAlign.center,
-                  style: Theme.of(context)
-                      .textTheme
-                      .headlineLarge
-                      ?.copyWith(fontWeight: FontWeight.w800),
+                  style: Theme.of(context).textTheme.headlineLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
@@ -154,19 +153,23 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => const ForgotPasswordScreen(),
-                      ),
-                    ),
+                    onPressed:
+                        () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => const ForgotPasswordScreen(),
+                          ),
+                        ),
                     child: const Text('Forgot password?'),
                   ),
                 ),
                 if (error != null)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(error!, style: const TextStyle(color: Colors.red)),
+                    child: Text(
+                      error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   ),
                 FilledButton(
                   onPressed: (busy || !AppConfig.supabaseReady) ? null : login,
@@ -177,10 +180,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton(
-                  onPressed: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const SignupScreen()),
-                  ),
+                  onPressed:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SignupScreen()),
+                      ),
                   child: const Text('Create account'),
                 ),
               ],

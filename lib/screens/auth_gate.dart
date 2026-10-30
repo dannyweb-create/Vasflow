@@ -36,7 +36,9 @@ class _AuthGateState extends State<AuthGate> {
       future: _start,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         if (snapshot.hasError) {
           return Scaffold(
@@ -52,8 +54,14 @@ class _AuthGateState extends State<AuthGate> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
-                    FilledButton(onPressed: _retry, child: const Text('Try again')),
-                    TextButton(onPressed: _logOut, child: const Text('Log out')),
+                    FilledButton(
+                      onPressed: _retry,
+                      child: const Text('Try again'),
+                    ),
+                    TextButton(
+                      onPressed: _logOut,
+                      child: const Text('Log out'),
+                    ),
                   ],
                 ),
               ),

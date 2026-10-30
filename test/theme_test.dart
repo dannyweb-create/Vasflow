@@ -56,7 +56,9 @@ void main() {
     expect(ThemeController.instance.choice, AppThemeChoice.light);
   });
 
-  testWidgets('choosing Liquid Glass in Settings changes the theme', (tester) async {
+  testWidgets('choosing Liquid Glass in Settings changes the theme', (
+    tester,
+  ) async {
     SharedPreferences.setMockInitialValues({});
     await tester.pumpWidget(
       MaterialApp(home: SettingsScreen(auth: AuthService())),

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../services/auth_service.dart';
+import '../services/reminder_service.dart';
 import '../theme/brand.dart';
 import '../theme/theme_controller.dart';
+import 'backup_screen.dart';
 import 'login_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -16,13 +18,16 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   // Only admins load the team list; the server refuses anyone else anyway.
-  late final Future<List<Map<String, dynamic>>> _team = widget.auth.isAdmin
-      ? widget.auth.listTeam()
-      : Future.value(const <Map<String, dynamic>>[]);
+  late final Future<List<Map<String, dynamic>>> _team =
+      widget.auth.isAdmin
+          ? widget.auth.listTeam()
+          : Future.value(const <Map<String, dynamic>>[]);
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _createInvite() async {
@@ -31,39 +36,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       await showDialog<void>(
         context: context,
-        builder: (dialogContext) => AlertDialog(
-          title: const Text('Staff invite code'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SelectableText(
-                code,
-                style: const TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5,
+        builder:
+            (dialogContext) => AlertDialog(
+              title: const Text('Staff invite code'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SelectableText(
+                    code,
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Works once and expires in 48 hours. Send it to your staff '
+                    'member privately. They create an account, log in, then choose '
+                    '"Join with an invite code". You cannot see this code again.',
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Clipboard.setData(ClipboardData(text: code)),
+                  child: const Text('Copy'),
                 ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Works once and expires in 48 hours. Send it to your staff '
-                'member privately. They create an account, log in, then choose '
-                '"Join with an invite code". You cannot see this code again.',
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Clipboard.setData(ClipboardData(text: code)),
-              child: const Text('Copy'),
+                FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext),
+                  child: const Text('Done'),
+                ),
+              ],
             ),
-            FilledButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Done'),
-            ),
-          ],
-        ),
       );
     } catch (e) {
       _snack(e.toString().replaceFirst('Exception: ', ''));
@@ -113,9 +119,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(18),
                     side: BorderSide(
-                      color: choice == selected
-                          ? scheme.primary
-                          : scheme.outlineVariant,
+                      color:
+                          choice == selected
+                              ? scheme.primary
+                              : scheme.outlineVariant,
                       width: choice == selected ? 2 : 1,
                     ),
                   ),
@@ -163,7 +170,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   for (final m in members)
                     ListTile(
                       contentPadding: EdgeInsets.zero,
-                      leading: const CircleAvatar(child: Icon(Icons.person_outline)),
+                      leading: const CircleAvatar(
+                        child: Icon(Icons.person_outline),
+                      ),
                       title: Text(
                         '${m['display_name'] ?? ''}'.isEmpty
                             ? 'Team member'
@@ -185,6 +194,34 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _remindersSection() {
+    return FutureBuilder<bool>(
+      future: ReminderService.isEnabled,
+      builder: (context, snapshot) {
+        final enabled = snapshot.data ?? true;
+        return SwitchListTile(
+          secondary: const Icon(Icons.notifications_outlined),
+          title: const Text('Deadline reminders (experimental)'),
+          subtitle: const Text(
+            'Local reminders on this device for task due dates and '
+            'application deadlines. Scheduling needs a rebuild with the '
+            'Android setup and is not verified on all devices yet.',
+          ),
+          value: enabled,
+          onChanged: (v) {
+            ReminderService.setEnabled(v).then((_) => setState(() {}));
+            if (v) {
+              _snack(
+                'Reminders on. Android will ask for notification '
+                'permission the first time one is scheduled.',
+              );
+            }
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = widget.auth;
@@ -198,7 +235,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               leading: const CircleAvatar(
                 child: Icon(Icons.admin_panel_settings_outlined),
               ),
-              title: Text(auth.currentEmail.isEmpty ? 'Signed in' : auth.currentEmail),
+              title: Text(
+                auth.currentEmail.isEmpty ? 'Signed in' : auth.currentEmail,
+              ),
               subtitle: Text(
                 '${auth.workspaceName.isEmpty ? 'Workspace' : auth.workspaceName}'
                 ' · Role: ${auth.role.toUpperCase()}',
@@ -207,6 +246,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 8),
           _appearanceSection(),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: const Icon(Icons.backup_outlined),
+              title: const Text('Backups & recovery'),
+              subtitle: const Text(
+                'Backup history, archive download and verified restores. '
+                'Only Admins can create backups or restore.',
+              ),
+              onTap:
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => BackupScreen(auth: auth)),
+                  ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Card(child: _remindersSection()),
           const SizedBox(height: 8),
           if (auth.isAdmin) _teamSection(),
           const ListTile(

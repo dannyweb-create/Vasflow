@@ -54,9 +54,10 @@ class AuthService {
     final id = identifier.trim();
     final auth = Supabase.instance.client.auth;
     await _guard(
-      () => id.contains('@')
-          ? auth.signInWithPassword(email: id, password: password)
-          : auth.signInWithPassword(phone: id, password: password),
+      () =>
+          id.contains('@')
+              ? auth.signInWithPassword(email: id, password: password)
+              : auth.signInWithPassword(phone: id, password: password),
     );
     await loadMembership();
   }
@@ -70,11 +71,12 @@ class AuthService {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return;
     try {
-      final row = await Supabase.instance.client
-          .from('workspace_members')
-          .select('workspace_id, role, workspaces(name)')
-          .eq('user_id', user.id)
-          .maybeSingle();
+      final row =
+          await Supabase.instance.client
+              .from('workspace_members')
+              .select('workspace_id, role, workspaces(name)')
+              .eq('user_id', user.id)
+              .maybeSingle();
       if (row == null) return;
       _workspaceId = row['workspace_id'] as String?;
       _role = row['role'] == 'admin' ? 'admin' : 'staff';
@@ -110,7 +112,9 @@ class AuthService {
   Future<List<Map<String, dynamic>>> listTeam() async {
     _requireOnline();
     final rows = await _rpc('list_team');
-    return (rows as List).map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return (rows as List)
+        .map((e) => Map<String, dynamic>.from(e as Map))
+        .toList();
   }
 
   Future<void> signUp({

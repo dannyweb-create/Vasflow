@@ -12,14 +12,15 @@ class VasFlowApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: ThemeController.instance,
-      builder: (context, _) => MaterialApp(
-        title: 'VasFlow',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(ThemeController.instance.choice),
-        supportedLocales: const [Locale('en')],
-        localizationsDelegates: GlobalMaterialLocalizations.delegates,
-        home: const AuthGate(),
-      ),
+      builder:
+          (context, _) => MaterialApp(
+            title: 'VasFlow',
+            debugShowCheckedModeBanner: false,
+            theme: buildTheme(ThemeController.instance.choice),
+            supportedLocales: const [Locale('en')],
+            localizationsDelegates: GlobalMaterialLocalizations.delegates,
+            home: const AuthGate(),
+          ),
     );
   }
 }

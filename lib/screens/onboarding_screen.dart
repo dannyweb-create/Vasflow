@@ -35,9 +35,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       await action();
       if (!mounted) return;
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(
-          builder: (_) => homeFor(widget.auth),
-        ),
+        MaterialPageRoute(builder: (_) => homeFor(widget.auth)),
         (route) => false,
       );
     } catch (e) {
@@ -100,11 +98,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         const SizedBox(height: 12),
                         FilledButton(
-                          onPressed: busy
-                              ? null
-                              : () => _run(
-                                    () => widget.auth
-                                        .createWorkspace(workspaceName.text),
+                          onPressed:
+                              busy
+                                  ? null
+                                  : () => _run(
+                                    () => widget.auth.createWorkspace(
+                                      workspaceName.text,
+                                    ),
                                   ),
                           child: const Text('Create workspace'),
                         ),
@@ -135,10 +135,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                         const SizedBox(height: 12),
                         OutlinedButton(
-                          onPressed: busy
-                              ? null
-                              : () => _run(
-                                    () => widget.auth.joinWorkspace(inviteCode.text),
+                          onPressed:
+                              busy
+                                  ? null
+                                  : () => _run(
+                                    () => widget.auth.joinWorkspace(
+                                      inviteCode.text,
+                                    ),
                                   ),
                           child: const Text('Join workspace'),
                         ),
@@ -149,10 +152,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 if (error != null)
                   Padding(
                     padding: const EdgeInsets.only(top: 16),
-                    child: Text(error!, style: const TextStyle(color: Colors.red)),
+                    child: Text(
+                      error!,
+                      style: const TextStyle(color: Colors.red),
+                    ),
                   ),
                 const SizedBox(height: 16),
-                TextButton(onPressed: busy ? null : _logOut, child: const Text('Log out')),
+                TextButton(
+                  onPressed: busy ? null : _logOut,
+                  child: const Text('Log out'),
+                ),
               ],
             ),
           ),

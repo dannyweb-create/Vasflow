@@ -38,6 +38,14 @@ jobs:
       - name: Prepare Android project files
         run: bash tool/prepare_android.sh
 
+      - name: Seed Gradle wrapper jar if flutter create left it missing
+        run: |
+          if [ ! -f android/gradle/wrapper/gradle-wrapper.jar ] && [ -f tool/gradle-wrapper.jar ]; then
+            mkdir -p android/gradle/wrapper
+            cp tool/gradle-wrapper.jar android/gradle/wrapper/
+            echo "Seeded gradle-wrapper.jar from tool/"
+          fi
+
       - name: Get dependencies
         run: flutter pub get
 

@@ -28,6 +28,17 @@ create table if not exists public.clients (
   updated_at timestamptz not null default now()
 );
 
+-- Additive columns used by newer app versions. Safe on databases that already
+-- exist: every statement below is idempotent and keeps old rows intact.
+--   archived  hides a client from the main list without deleting anything
+--             (deletes stay admin-only in the workspace phase).
+--   profile   holds the optional client-form fields (dates, nationality,
+--             course, consultant, document checklist) as JSON.
+alter table public.clients
+  add column if not exists archived boolean not null default false;
+alter table public.clients
+  add column if not exists profile jsonb not null default '{}'::jsonb;
+
 alter table public.profiles enable row level security;
 alter table public.clients enable row level security;
 
