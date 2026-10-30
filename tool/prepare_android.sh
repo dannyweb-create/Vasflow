@@ -10,6 +10,8 @@ if [ ! -d android ]; then
   flutter create --platforms=android --org com.vasflow --project-name vasflow .
 fi
 
+python tool/enable_desugaring.py
+
 MANIFEST="android/app/src/main/AndroidManifest.xml"
 
 if ! grep -q 'android.permission.INTERNET' "$MANIFEST"; then
