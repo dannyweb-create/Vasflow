@@ -29,7 +29,6 @@ jobs:
           channel: stable
           flutter-version: "3.35.0"
           cache: true
-
       - name: Show tool versions
         run: |
           flutter --version
