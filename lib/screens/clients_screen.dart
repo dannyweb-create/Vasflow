@@ -7,10 +7,11 @@ import '../services/auth_service.dart';
 import '../services/client_repository.dart';
 import '../services/local_store.dart';
 import '../theme/glass_widgets.dart';
-import '../utils/dates.dart';
 import '../utils/file_export.dart';
+import '../widgets/client_avatar.dart';
 import 'applications_screen.dart';
 import 'client_form_screen.dart';
+import 'client_profile_screen.dart';
 import 'documents_screen.dart';
 import 'payments_screen.dart';
 
@@ -252,26 +253,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
     );
   }
 
-  Widget _avatar(ClientRecord c, {double size = 46}) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer,
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        c.fullName.isEmpty ? '?' : c.fullName[0].toUpperCase(),
-        style: TextStyle(
-          fontWeight: FontWeight.w800,
-          fontSize: size * 0.4,
-          color: scheme.onPrimaryContainer,
-        ),
-      ),
-    );
-  }
+  Widget _avatar(ClientRecord c, {double size = 46}) => ClientAvatar(
+    photoPath: c.photoPath,
+    name: c.fullName,
+    size: size,
+  );
 
   Widget _clientRow(ClientRecord c) {
     final theme = Theme.of(context);
@@ -498,149 +484,16 @@ class _ClientsScreenState extends State<ClientsScreen> {
     await load();
   }
 
-  void _showDetails(ClientRecord c) {
-    showDialog<void>(
-      context: context,
-      builder:
-          (dialogContext) => AlertDialog(
-            title: Row(
-              children: [
-                const SizedBox(width: 2),
-                Expanded(
-                  child: Text(
-                    c.fullName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ],
-            ),
-            content: SizedBox(
-              width: 420,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      '${c.stage} · Visa: ${c.visaStatus}',
-                      style: const TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 8),
-                    Text('Email: ${c.email.isEmpty ? '—' : c.email}'),
-                    Text('Phone: ${c.phone.isEmpty ? '—' : c.phone}'),
-                    Text('Country: ${c.country.isEmpty ? '—' : c.country}'),
-                    Text(
-                      'University: ${c.university.isEmpty ? '—' : c.university}',
-                    ),
-                    Text('Nationality: ${c.details['nationality'] ?? '—'}'),
-                    Text('Course: ${c.details['intended_course'] ?? '—'}'),
-                    Text(
-                      'Study level: ${c.details['study_level'] ?? '—'} · '
-                      'Intake: ${c.details['intake'] ?? '—'}',
-                    ),
-                    Text(
-                      'Passport: ${c.passportNumber.isEmpty ? '—' : c.passportNumber}',
-                    ),
-                    if (c.details['passport_expiry_date'] is String &&
-                        '${c.details['passport_expiry_date']}'.isNotEmpty)
-                      Text(
-                        'Passport expires: ${dayLabel(ClientRecord.dateFromDetails(c.details, 'passport_expiry_date')!, DateTime.now())}',
-                      ),
-                    if (c.details['consultant'] is String &&
-                        '${c.details['consultant']}'.isNotEmpty)
-                      Text('Consultant: ${c.details['consultant']}'),
-                    if (ClientRecord.receivedDocuments(c.details).isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(
-                          'Documents on file: '
-                          '${ClientRecord.receivedDocuments(c.details).join(', ')}',
-                        ),
-                      ),
-                    if (c.notes.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text('Notes: ${c.notes}'),
-                      ),
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        'Updated ${timeAgo(c.updatedAt, DateTime.now())}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            _openApplications(c);
-                          },
-                          icon: const Icon(
-                            Icons.flight_takeoff_outlined,
-                            size: 18,
-                          ),
-                          label: const Text('Applications'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            _openDocuments(c);
-                          },
-                          icon: const Icon(
-                            Icons.folder_open_outlined,
-                            size: 18,
-                          ),
-                          label: const Text('Documents'),
-                        ),
-                        OutlinedButton.icon(
-                          onPressed: () {
-                            Navigator.pop(dialogContext);
-                            _openPayments(c);
-                          },
-                          icon: const Icon(Icons.payments_outlined, size: 18),
-                          label: const Text('Payments'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  _setArchived(c);
-                },
-                child: Text(c.archived ? 'Restore' : 'Archive'),
-              ),
-              if (widget.auth.role == 'admin')
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                    _delete(c);
-                  },
-                  style: TextButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
-                  ),
-                  child: const Text('Delete'),
-                ),
-              FilledButton(
-                onPressed: () {
-                  Navigator.pop(dialogContext);
-                  _openForm(c);
-                },
-                child: const Text('Edit'),
-              ),
-            ],
-          ),
+  Future<void> _showDetails(ClientRecord c) async {
+    await Navigator.push<void>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) =>
+                ClientProfileScreen(auth: widget.auth, repo: repo, client: c),
+      ),
     );
+    await load();
   }
 
   Future<(bool, String?)?> _pickFilter(
