@@ -44,6 +44,34 @@ class ClientPhotoService {
     return path;
   }
 
+  /// Uploads to a caller-chosen path in the same private bucket. Used for
+  /// admin profile photos, which keep a stable path instead of a unique one.
+  Future<void> uploadToPath({
+    required String path,
+    required Uint8List bytes,
+    required String extension,
+  }) async {
+    if (!AppConfig.supabaseReady) {
+      throw Exception('Photos need a Supabase connection to upload.');
+    }
+    final cleanPath = path.trim();
+    if (cleanPath.isEmpty) throw Exception('The photo path is missing.');
+    final ext = _normaliseExtension(extension);
+    if (!isSupportedExtension(ext)) {
+      throw Exception('Photos must be JPG or PNG.');
+    }
+    await Supabase.instance.client.storage
+        .from(bucket)
+        .uploadBinary(
+          cleanPath,
+          bytes,
+          fileOptions: FileOptions(
+            contentType: ext == 'png' ? 'image/png' : 'image/jpeg',
+            upsert: true,
+          ),
+        );
+  }
+
   Future<void> remove(String path) async {
     if (path.trim().isEmpty || !AppConfig.supabaseReady) return;
     await Supabase.instance.client.storage.from(bucket).remove([path]);
