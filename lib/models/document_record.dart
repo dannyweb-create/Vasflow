@@ -10,6 +10,8 @@ class DocumentRecord {
   final String mimeType;
   final int sizeBytes;
   final String uploadedBy;
+  final String status;
+  final String adminNotes;
   final DateTime updatedAt;
 
   const DocumentRecord({
@@ -21,19 +23,33 @@ class DocumentRecord {
     this.mimeType = '',
     this.sizeBytes = 0,
     this.uploadedBy = '',
+    this.status = 'Uploaded',
+    this.adminNotes = '',
     required this.updatedAt,
   });
 
-  DocumentRecord copyWith({String? name, String? category}) => DocumentRecord(
+  DocumentRecord copyWith({
+    String? name,
+    String? category,
+    String? filePath,
+    String? mimeType,
+    int? sizeBytes,
+    String? uploadedBy,
+    String? status,
+    String? adminNotes,
+    DateTime? updatedAt,
+  }) => DocumentRecord(
     id: id,
     clientId: clientId,
     name: name ?? this.name,
     category: category ?? this.category,
-    filePath: filePath,
-    mimeType: mimeType,
-    sizeBytes: sizeBytes,
-    uploadedBy: uploadedBy,
-    updatedAt: DateTime.now(),
+    filePath: filePath ?? this.filePath,
+    mimeType: mimeType ?? this.mimeType,
+    sizeBytes: sizeBytes ?? this.sizeBytes,
+    uploadedBy: uploadedBy ?? this.uploadedBy,
+    status: status ?? this.status,
+    adminNotes: adminNotes ?? this.adminNotes,
+    updatedAt: updatedAt ?? DateTime.now(),
   );
 
   static int _int(dynamic raw) {
@@ -50,6 +66,8 @@ class DocumentRecord {
     'mime_type': mimeType,
     'size_bytes': sizeBytes,
     'uploaded_by': uploadedBy,
+    'status': status,
+    'admin_notes': adminNotes,
     'updated_at': updatedAt.toIso8601String(),
   };
 
@@ -62,6 +80,8 @@ class DocumentRecord {
     mimeType: '${j['mime_type'] ?? ''}',
     sizeBytes: _int(j['size_bytes']),
     uploadedBy: '${j['uploaded_by'] ?? ''}',
+    status: '${j['status'] ?? 'Uploaded'}',
+    adminNotes: '${j['admin_notes'] ?? ''}',
     updatedAt: DateTime.tryParse('${j['updated_at'] ?? ''}') ?? DateTime.now(),
   );
 }
