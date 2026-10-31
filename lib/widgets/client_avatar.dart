@@ -7,11 +7,15 @@ class ClientAvatar extends StatefulWidget {
   final String name;
   final double size;
 
+  /// When set, the avatar is drawn with rounded corners instead of a circle.
+  final BorderRadius? borderRadius;
+
   const ClientAvatar({
     super.key,
     required this.photoPath,
     required this.name,
     this.size = 46,
+    this.borderRadius,
   });
 
   @override
@@ -60,7 +64,9 @@ class _ClientAvatarState extends State<ClientAvatar> {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: scheme.primaryContainer,
-        shape: BoxShape.circle,
+        shape:
+            widget.borderRadius == null ? BoxShape.circle : BoxShape.rectangle,
+        borderRadius: widget.borderRadius,
       ),
       child: Text(
         _initials,
@@ -81,18 +87,20 @@ class _ClientAvatarState extends State<ClientAvatar> {
       builder: (context, snapshot) {
         final url = snapshot.data;
         if (url == null || url.isEmpty) return _fallback();
-        return ClipOval(
-          child: Image.network(
-            url,
-            width: widget.size,
-            height: widget.size,
-            fit: BoxFit.cover,
-            loadingBuilder:
-                (context, child, progress) =>
-                    progress == null ? child : _fallback(),
-            errorBuilder: (context, error, stackTrace) => _fallback(),
-          ),
+        final image = Image.network(
+          url,
+          width: widget.size,
+          height: widget.size,
+          fit: BoxFit.cover,
+          loadingBuilder:
+              (context, child, progress) =>
+                  progress == null ? child : _fallback(),
+          errorBuilder: (context, error, stackTrace) => _fallback(),
         );
+        final radius = widget.borderRadius;
+        return radius == null
+            ? ClipOval(child: image)
+            : ClipRRect(borderRadius: radius, child: image);
       },
     );
   }

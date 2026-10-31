@@ -12,6 +12,7 @@ import '../services/business_repositories.dart';
 import '../services/client_photo_service.dart';
 import '../services/client_repository.dart';
 import '../services/local_store.dart';
+import '../theme/brand.dart';
 import '../theme/glass_widgets.dart';
 import '../utils/client_export.dart';
 import '../utils/dates.dart';
@@ -385,24 +386,34 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     );
   }
 
-  Widget _avatar({double size = 68}) {
+  Widget _avatar({double size = 88}) {
     final scheme = Theme.of(context).colorScheme;
+    final radius = BorderRadius.circular(size * 0.3);
     return GestureDetector(
       onTap: _showPhotoActions,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          ClientAvatar(
-            photoPath: _client.photoPath,
-            name: _client.fullName,
-            size: size,
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(size * 0.3 + 2),
+              color: scheme.surface.withValues(alpha: 0.35),
+              border: Border.all(color: scheme.primary.withValues(alpha: 0.32)),
+            ),
+            child: ClientAvatar(
+              photoPath: _client.photoPath,
+              name: _client.fullName,
+              size: size,
+              borderRadius: radius,
+            ),
           ),
           Positioned(
             right: -2,
             bottom: -2,
             child: Container(
-              width: 25,
-              height: 25,
+              width: 28,
+              height: 28,
               decoration: BoxDecoration(
                 color: scheme.primary,
                 shape: BoxShape.circle,
@@ -412,7 +423,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                 _client.photoPath.isEmpty
                     ? Icons.add_a_photo_outlined
                     : Icons.edit_outlined,
-                size: 13,
+                size: 14,
                 color: scheme.onPrimary,
               ),
             ),
@@ -422,24 +433,32 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     );
   }
 
-  Widget _actionTile(IconData icon, String label, VoidCallback onTap) {
+  Widget _actionTile(IconData icon, String label, VoidCallback? onTap) {
     final scheme = Theme.of(context).colorScheme;
-    return GlassPanel(
-      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-      radius: 18,
-      onTap: onTap,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 21, color: scheme.primary),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.w700),
-          ),
-        ],
+    final enabled = onTap != null;
+    return Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: GlassPanel(
+        padding: const EdgeInsets.symmetric(vertical: 11, horizontal: 4),
+        radius: 18,
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 20, color: scheme.primary),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 11.5,
+                fontWeight: FontWeight.w700,
+                color: enabled ? null : scheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -483,16 +502,12 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                           )
                           : const Icon(Icons.ios_share_outlined),
                 ),
-              IconButton(
-                tooltip: 'Edit client',
-                onPressed: _edit,
-                icon: const Icon(Icons.edit_outlined),
-              ),
             ],
           ),
           Padding(
             padding: const EdgeInsets.fromLTRB(10, 0, 2, 0),
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _avatar(),
                 const SizedBox(width: 14),
@@ -530,14 +545,27 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 10),
                       Wrap(
                         spacing: 6,
                         runSpacing: 6,
+                        crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
                           _pill(_client.stage, _stageColor(_client.stage)),
                           if (_client.archived)
                             _pill('Archived', scheme.outline),
+                          OutlinedButton.icon(
+                            onPressed: _edit,
+                            style: OutlinedButton.styleFrom(
+                              minimumSize: const Size(0, 36),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                              ),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                            icon: const Icon(Icons.edit_outlined, size: 16),
+                            label: const Text('Edit'),
+                          ),
                         ],
                       ),
                     ],
@@ -567,6 +595,14 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             Icons.mail_outline_rounded,
             'Email',
             () => _showContact('Email', _client.email),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _actionTile(
+            Icons.ios_share_outlined,
+            'Export',
+            widget.auth.isAdmin && !_exporting ? _exportClient : null,
           ),
         ),
         const SizedBox(width: 8),
@@ -1085,6 +1121,54 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     );
   }
 
+  Widget _quickTile(
+    IconData icon,
+    String label,
+    VoidCallback? onTap, {
+    String? disabledHint,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    final enabled = onTap != null;
+    final tile = Opacity(
+      opacity: enabled ? 1 : 0.45,
+      child: Material(
+        color: scheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(16),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(16),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 11),
+            child: Row(
+              children: [
+                Icon(icon, size: 19, color: scheme.primary),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color:
+                          enabled
+                              ? null
+                              : scheme.onSurface.withValues(alpha: 0.65),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    if (disabledHint == null || enabled) return tile;
+    return Tooltip(message: disabledHint, child: tile);
+  }
+
   Widget _quickActions() {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
@@ -1107,6 +1191,34 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
             ],
           ),
           const SizedBox(height: 10),
+          GridView.count(
+            crossAxisCount: 2,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            mainAxisSpacing: 8,
+            crossAxisSpacing: 8,
+            childAspectRatio: 2.4,
+            children: [
+              _quickTile(
+                Icons.upload_file_outlined,
+                'Add Document',
+                _openDocuments,
+              ),
+              _quickTile(
+                Icons.task_alt_outlined,
+                'Add Task',
+                null,
+                disabledHint: 'Tasks are not linked to clients yet.',
+              ),
+              _quickTile(
+                Icons.payments_outlined,
+                'Record Payment',
+                _openPayments,
+              ),
+              _quickTile(Icons.sticky_note_2_outlined, 'Add Note', _edit),
+            ],
+          ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -1133,11 +1245,123 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     );
   }
 
+  Widget _activityRow(_ActivityEntry entry) {
+    final scheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(entry.icon, size: 17, color: scheme.onPrimaryContainer),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  entry.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  entry.detail,
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: scheme.onSurface.withValues(alpha: 0.65),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _recentActivityCard() {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final events = <_ActivityEntry>[
+      _ActivityEntry(
+        at: _client.updatedAt,
+        icon: Icons.update_rounded,
+        title: 'Client record updated',
+        detail:
+            '${DateFormat('d MMM y, HH:mm').format(_client.updatedAt)} · '
+            '${timeAgo(_client.updatedAt, DateTime.now())}',
+      ),
+      for (final doc in _documents)
+        _ActivityEntry(
+          at: doc.updatedAt,
+          icon: Icons.description_outlined,
+          title: doc.name,
+          detail: [
+            if (doc.category.trim().isNotEmpty) doc.category.trim(),
+            'Updated ${DateFormat('d MMM y').format(doc.updatedAt)}',
+          ].join(' · '),
+        ),
+    ]..sort((a, b) => b.at.compareTo(a.at));
+    final recent = events.take(4).toList();
+    return GlassPanel(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      radius: 22,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.history_rounded, size: 18, color: scheme.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Recent activity',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          for (var i = 0; i < recent.length; i++) ...[
+            _activityRow(recent[i]),
+            if (i != recent.length - 1)
+              Divider(color: scheme.outlineVariant, height: 1),
+          ],
+        ],
+      ),
+    );
+  }
+
   Widget _overviewTab() {
     return ListView(
       key: const PageStorageKey('client-overview'),
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
       children: [
+        _section('Application details', Icons.assignment_outlined, [
+          _infoRow('Preferred country', _client.country),
+          _infoRow('Preferred university', _client.university),
+          _infoRow('Intended course', _detail('intended_course')),
+          _infoRow('Study level', _detail('study_level')),
+          _infoRow('Intended travel date', _dateText('travel_date')),
+          _infoRow('Intake', _detail('intake')),
+          _infoRow('Application type', _detail('application_type')),
+          _infoRow('Application deadline', _dateText('application_deadline')),
+        ]),
+        const SizedBox(height: 12),
         _section('Personal and contact', Icons.person_outline_rounded, [
           _infoRow('Full name', _client.fullName),
           _infoRow('Email', _client.email),
@@ -1155,18 +1379,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           _infoRow('Visa status', _client.visaStatus),
         ]),
         const SizedBox(height: 12),
-        _section('Study destination', Icons.public_outlined, [
-          _infoRow('Preferred country', _client.country),
-          _infoRow('Intended travel date', _dateText('travel_date')),
-          _infoRow('Intake', _detail('intake')),
-          _infoRow('Application type', _detail('application_type')),
-          _infoRow('Application deadline', _dateText('application_deadline')),
-        ]),
-        const SizedBox(height: 12),
-        _section('University and course', Icons.school_outlined, [
-          _infoRow('Preferred university', _client.university),
-          _infoRow('Intended course', _detail('intended_course')),
-          _infoRow('Study level', _detail('study_level')),
+        _section('School and consultant', Icons.school_outlined, [
           _infoRow('Current school', _detail('current_school')),
           _infoRow('Qualifications', _detail('qualifications')),
           _infoRow('Consultant', _detail('consultant')),
@@ -1176,9 +1389,11 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           ),
         ]),
         const SizedBox(height: 12),
+        _quickActions(),
+        const SizedBox(height: 12),
         _notesCard(),
         const SizedBox(height: 12),
-        _quickActions(),
+        _recentActivityCard(),
       ],
     );
   }
@@ -1524,10 +1739,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       padding: const EdgeInsets.all(4),
       radius: 18,
       child: TabBar(
-        labelColor: scheme.onSurface,
-        unselectedLabelColor: scheme.onSurface.withValues(alpha: 0.6),
+        labelColor: Brand.onGreen,
+        unselectedLabelColor: scheme.onSurface.withValues(alpha: 0.65),
         indicator: BoxDecoration(
-          color: scheme.primaryContainer,
+          color: Brand.green,
           borderRadius: BorderRadius.circular(14),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
@@ -1599,6 +1814,20 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       ),
     );
   }
+}
+
+class _ActivityEntry {
+  final DateTime at;
+  final IconData icon;
+  final String title;
+  final String detail;
+
+  const _ActivityEntry({
+    required this.at,
+    required this.icon,
+    required this.title,
+    required this.detail,
+  });
 }
 
 class _ClientExportChoice {

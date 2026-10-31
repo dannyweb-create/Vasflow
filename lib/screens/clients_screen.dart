@@ -111,7 +111,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
   List<String> get availableStages {
     final present = {for (final c in clients) c.stage};
     return [
-      ...kClientStages.where(present.contains),
+      ...kClientStages,
       ...present.where((s) => !kClientStages.contains(s)).toList()..sort(),
     ];
   }
@@ -272,7 +272,7 @@ class _ClientsScreenState extends State<ClientsScreen> {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GlassPanel(
-        padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
+        padding: const EdgeInsets.fromLTRB(12, 10, 4, 10),
         radius: 20,
         onTap: () => _showDetails(c),
         child: Row(
@@ -295,36 +295,45 @@ class _ClientsScreenState extends State<ClientsScreen> {
                   const SizedBox(height: 3),
                   Row(
                     children: [
-                      _stageBadge(c.stage),
-                      if (c.country.isNotEmpty) ...[
-                        const SizedBox(width: 8),
-                        Icon(
-                          Icons.place_outlined,
-                          size: 13,
-                          color: scheme.onSurface.withValues(alpha: 0.55),
-                        ),
-                        const SizedBox(width: 2),
-                        Flexible(
-                          child: Text(
-                            c.country,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: scheme.onSurface.withValues(alpha: 0.65),
-                            ),
+                      Icon(
+                        Icons.place_outlined,
+                        size: 13,
+                        color: scheme.onSurface.withValues(alpha: 0.55),
+                      ),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        child: Text(
+                          c.country.isEmpty ? 'No country yet' : c.country,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: scheme.onSurface.withValues(alpha: 0.65),
                           ),
                         ),
-                      ],
+                      ),
                     ],
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 104),
+              child: _stageBadge(c.stage),
+            ),
+            const SizedBox(width: 2),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 20,
+              color: scheme.onSurface.withValues(alpha: 0.45),
+            ),
             PopupMenuButton<String>(
               tooltip: 'Actions',
+              padding: EdgeInsets.zero,
               icon: Icon(
                 Icons.more_vert,
+                size: 20,
                 color: scheme.onSurface.withValues(alpha: 0.55),
               ),
               onSelected: (action) {
@@ -503,89 +512,241 @@ class _ClientsScreenState extends State<ClientsScreen> {
     await load();
   }
 
-  Future<(bool, String?)?> _pickFilter(
-    String title,
-    String? current,
-    List<String> options,
-  ) async => showModalBottomSheet<(bool, String?)>(
-    context: context,
-    builder:
-        (sheetContext) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              Padding(
-                padding: const EdgeInsets.all(14),
-                child: Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w700),
+  Widget _searchRow() {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              controller: search,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search),
+                hintText: 'Search name, email or phone',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
                 ),
+                suffixIcon:
+                    search.text.isEmpty
+                        ? null
+                        : IconButton(
+                          icon: const Icon(Icons.close),
+                          onPressed: () {
+                            search.clear();
+                            setState(() {});
+                          },
+                        ),
               ),
-              ListTile(
-                title: const Text('All'),
-                trailing: current == null ? const Icon(Icons.check) : null,
-                onTap: () => Navigator.pop(sheetContext, (true, null)),
+            ),
+          ),
+          if (!widget.exportOnly) ...[
+            const SizedBox(width: 8),
+            _filterButton(theme),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _filterButton(ThemeData theme) {
+    final scheme = theme.colorScheme;
+    final active = countryFilter != null || showArchived;
+    return Tooltip(
+      message: 'Filters',
+      child: GlassPanel(
+        padding: EdgeInsets.zero,
+        radius: 14,
+        onTap: _showFilters,
+        child: SizedBox(
+          width: 54,
+          height: 56,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              Icon(
+                Icons.tune_rounded,
+                color: scheme.onSurface.withValues(alpha: 0.75),
               ),
-              for (final option in options)
-                ListTile(
-                  title: Text(option),
-                  trailing: current == option ? const Icon(Icons.check) : null,
-                  onTap: () => Navigator.pop(sheetContext, (true, option)),
+              if (active)
+                Positioned(
+                  top: 13,
+                  right: 13,
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                      color: Brand.green,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
                 ),
             ],
           ),
         ),
-  );
+      ),
+    );
+  }
 
-  Widget _filters() {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
+  Widget _statusChips() {
+    final scheme = Theme.of(context).colorScheme;
+    final options = <String?>[null, ...availableStages];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 6, 16, 2),
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 2),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         clipBehavior: Clip.none,
         child: Row(
           children: [
-            FilterChip(
-              selected: stageFilter != null,
-              label: Text(stageFilter ?? 'Status: All'),
-              onSelected: (_) async {
-                final picked = await _pickFilter(
-                  'Filter by stage',
-                  stageFilter,
-                  availableStages,
-                );
-                if (picked != null) setState(() => stageFilter = picked.$2);
-              },
-            ),
-            const SizedBox(width: 8),
-            FilterChip(
-              selected: countryFilter != null,
-              label: Text(countryFilter ?? 'Country: All'),
-              onSelected: (_) async {
-                final picked = await _pickFilter(
-                  'Filter by destination country',
-                  countryFilter,
-                  availableCountries,
-                );
-                if (picked != null) setState(() => countryFilter = picked.$2);
-              },
-            ),
-            const SizedBox(width: 8),
-            FilterChip(
-              selected: showArchived,
-              avatar: Icon(
-                Icons.archive_outlined,
-                size: 16,
-                color: showArchived ? scheme.onSecondaryContainer : null,
+            for (var i = 0; i < options.length; i++) ...[
+              ChoiceChip(
+                label: Text(options[i] ?? 'All'),
+                selected: stageFilter == options[i],
+                showCheckmark: false,
+                selectedColor: Brand.green,
+                backgroundColor:
+                    scheme.brightness == Brightness.dark
+                        ? Colors.white.withValues(alpha: 0.06)
+                        : scheme.surfaceContainerHighest,
+                shape: StadiumBorder(
+                  side: BorderSide(
+                    color:
+                        stageFilter == options[i]
+                            ? Brand.green
+                            : scheme.outline.withValues(alpha: 0.35),
+                  ),
+                ),
+                labelStyle: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color:
+                      stageFilter == options[i]
+                          ? Brand.onGreen
+                          : scheme.onSurface.withValues(alpha: 0.8),
+                ),
+                onSelected: (_) => setState(() => stageFilter = options[i]),
               ),
-              label: const Text('Archived'),
-              onSelected: (v) => setState(() => showArchived = v),
-            ),
+              if (i != options.length - 1) const SizedBox(width: 8),
+            ],
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _showFilters() async {
+    await showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setSheetState) {
+            final theme = Theme.of(context);
+            final scheme = theme.colorScheme;
+            void refresh() => setSheetState(() {});
+            final countries = <String?>[null, ...availableCountries];
+            return SafeArea(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: MediaQuery.of(context).size.height * 0.72,
+                ),
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Filters', style: theme.textTheme.titleLarge),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Country',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: scheme.onSurface.withValues(alpha: 0.6),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          for (final country in countries)
+                            ChoiceChip(
+                              label: Text(country ?? 'All countries'),
+                              selected: countryFilter == country,
+                              showCheckmark: false,
+                              selectedColor: Brand.green,
+                              backgroundColor: scheme.surfaceContainerHighest,
+                              shape: StadiumBorder(
+                                side: BorderSide(
+                                  color:
+                                      countryFilter == country
+                                          ? Brand.green
+                                          : scheme.outline.withValues(
+                                            alpha: 0.35,
+                                          ),
+                                ),
+                              ),
+                              labelStyle: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                                color:
+                                    countryFilter == country
+                                        ? Brand.onGreen
+                                        : scheme.onSurface.withValues(
+                                          alpha: 0.8,
+                                        ),
+                              ),
+                              onSelected: (_) {
+                                setState(() => countryFilter = country);
+                                refresh();
+                              },
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: showArchived,
+                        onChanged: (value) {
+                          setState(() => showArchived = value);
+                          refresh();
+                        },
+                        title: const Text('Archived clients'),
+                        subtitle: const Text('Show clients that were archived'),
+                        secondary: Icon(
+                          Icons.archive_outlined,
+                          color: scheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                      if (countryFilter != null || showArchived)
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: TextButton.icon(
+                            onPressed: () {
+                              setState(() {
+                                countryFilter = null;
+                                showArchived = false;
+                              });
+                              refresh();
+                            },
+                            icon: const Icon(
+                              Icons.filter_alt_off_outlined,
+                              size: 18,
+                            ),
+                            label: const Text('Clear filters'),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -709,31 +870,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
       ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: TextField(
-              controller: search,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                prefixIcon: const Icon(Icons.search),
-                hintText: 'Search name, email or phone',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                suffixIcon:
-                    search.text.isEmpty
-                        ? null
-                        : IconButton(
-                          icon: const Icon(Icons.close),
-                          onPressed: () {
-                            search.clear();
-                            setState(() {});
-                          },
-                        ),
-              ),
-            ),
-          ),
-          if (!widget.exportOnly) _filters(),
+          _searchRow(),
+          if (!widget.exportOnly) _statusChips(),
           Expanded(
             child:
                 items.isEmpty
