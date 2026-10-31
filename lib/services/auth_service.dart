@@ -144,7 +144,10 @@ class AuthService {
         .toList();
   }
 
-  Future<void> signUp({
+  /// Returns true when sign-up produced a session immediately. Email or phone
+  /// confirmation can delay the session, in which case the person must confirm
+  /// and log in before an invitation code can be redeemed.
+  Future<bool> signUp({
     String? email,
     String? phone,
     required String password,
@@ -152,13 +155,14 @@ class AuthService {
     _requireOnline();
     final cleanEmail = (email ?? '').trim();
     final cleanPhone = (phone ?? '').trim();
-    await _guard(
+    final response = await _guard(
       () => Supabase.instance.client.auth.signUp(
         email: cleanEmail.isEmpty ? null : cleanEmail,
         phone: cleanPhone.isEmpty ? null : cleanPhone,
         password: password,
       ),
     );
+    return response.session != null;
   }
 
   Future<void> resetPassword(String email) async {
