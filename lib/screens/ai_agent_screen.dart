@@ -22,7 +22,12 @@ class AiAgentScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('AI Agent')),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(18, 12, 18, 28),
+        padding: const EdgeInsets.fromLTRB(
+          18,
+          12,
+          18,
+          AppLayout.bottomContentPadding,
+        ),
         children: [
           GlassPanel(
             padding: const EdgeInsets.all(18),

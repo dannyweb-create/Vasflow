@@ -6,6 +6,7 @@ import '../models/stages.dart';
 import '../services/auth_service.dart';
 import '../services/client_repository.dart';
 import '../services/local_store.dart';
+import '../theme/brand.dart';
 import '../theme/glass_widgets.dart';
 import '../utils/file_export.dart';
 import '../widgets/client_avatar.dart';
@@ -21,7 +22,16 @@ import 'payments_screen.dart';
 class ClientsScreen extends StatefulWidget {
   final AuthService auth;
   final bool exportOnly;
-  const ClientsScreen({super.key, required this.auth, this.exportOnly = false});
+
+  /// Extra space below the action button. The workspace shell uses this to lift
+  /// the button above its floating navigation pill.
+  final double fabBottomInset;
+  const ClientsScreen({
+    super.key,
+    required this.auth,
+    this.exportOnly = false,
+    this.fabBottomInset = 0,
+  });
 
   @override
   State<ClientsScreen> createState() => _ClientsScreenState();
@@ -253,11 +263,8 @@ class _ClientsScreenState extends State<ClientsScreen> {
     );
   }
 
-  Widget _avatar(ClientRecord c, {double size = 46}) => ClientAvatar(
-    photoPath: c.photoPath,
-    name: c.fullName,
-    size: size,
-  );
+  Widget _avatar(ClientRecord c, {double size = 46}) =>
+      ClientAvatar(photoPath: c.photoPath, name: c.fullName, size: size);
 
   Widget _clientRow(ClientRecord c) {
     final theme = Theme.of(context);
@@ -586,7 +593,12 @@ class _ClientsScreenState extends State<ClientsScreen> {
     final items = filtered;
     if (gridMode) {
       return GridView.builder(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 96),
+        padding: const EdgeInsets.fromLTRB(
+          14,
+          8,
+          14,
+          AppLayout.bottomContentPadding,
+        ),
         gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
           maxCrossAxisExtent: 220,
           mainAxisSpacing: 8,
@@ -598,7 +610,12 @@ class _ClientsScreenState extends State<ClientsScreen> {
       );
     }
     return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 96),
+      padding: const EdgeInsets.fromLTRB(
+        14,
+        8,
+        14,
+        AppLayout.bottomContentPadding,
+      ),
       itemCount: items.length,
       itemBuilder: (context, i) => _clientRow(items[i]),
     );
@@ -668,18 +685,28 @@ class _ClientsScreenState extends State<ClientsScreen> {
           const SizedBox(width: 6),
         ],
       ),
-      floatingActionButton:
-          widget.exportOnly
-              ? FloatingActionButton.extended(
-                onPressed: _exportCsv,
-                icon: const Icon(Icons.file_download_outlined),
-                label: const Text('Export CSV'),
-              )
-              : FloatingActionButton.extended(
-                onPressed: () => _openForm(),
-                icon: const Icon(Icons.person_add_alt_1),
-                label: const Text('Add client'),
-              ),
+      floatingActionButton: Padding(
+        padding: EdgeInsets.only(bottom: widget.fabBottomInset),
+        child:
+            widget.exportOnly
+                ? FloatingActionButton.extended(
+                  onPressed: _exportCsv,
+                  icon: const Icon(Icons.file_download_outlined),
+                  label: const Text('Export CSV'),
+                )
+                : Container(
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: AppShadows.glow,
+                  ),
+                  child: FloatingActionButton(
+                    tooltip: 'Add client',
+                    shape: const CircleBorder(),
+                    onPressed: () => _openForm(),
+                    child: const Icon(Icons.add_rounded, size: 30),
+                  ),
+                ),
+      ),
       body: Column(
         children: [
           Padding(

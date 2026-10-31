@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/business_repositories.dart';
 import '../services/client_repository.dart';
 import '../services/local_store.dart';
+import '../theme/brand.dart';
 import '../theme/glass_widgets.dart';
 import '../utils/dates.dart';
 import '../widgets/client_avatar.dart';
@@ -617,7 +618,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : RefreshIndicator(
                 onRefresh: refresh,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    6,
+                    16,
+                    AppLayout.bottomContentPadding,
+                  ),
                   children: [
                     Text(
                       '${_greeting()}${name.isEmpty ? '' : ','}',
