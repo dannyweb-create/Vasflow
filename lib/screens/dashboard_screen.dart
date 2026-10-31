@@ -8,8 +8,10 @@ import '../services/auth_service.dart';
 import '../services/business_repositories.dart';
 import '../services/client_repository.dart';
 import '../services/local_store.dart';
+import '../theme/brand.dart';
 import '../theme/glass_widgets.dart';
 import '../utils/dates.dart';
+import '../widgets/client_avatar.dart';
 import 'applications_screen.dart';
 import 'clients_screen.dart';
 import 'documents_screen.dart';
@@ -518,23 +520,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 child: Row(
                   children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: scheme.primaryContainer,
-                        shape: BoxShape.circle,
-                      ),
-                      child: Text(
-                        items[i].fullName.isEmpty
-                            ? '?'
-                            : items[i].fullName[0].toUpperCase(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: scheme.onPrimaryContainer,
-                        ),
-                      ),
+                    ClientAvatar(
+                      photoPath: items[i].photoPath,
+                      name: items[i].fullName,
+                      size: 40,
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -629,7 +618,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               : RefreshIndicator(
                 onRefresh: refresh,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 28),
+                  padding: const EdgeInsets.fromLTRB(
+                    16,
+                    6,
+                    16,
+                    AppLayout.bottomContentPadding,
+                  ),
                   children: [
                     Text(
                       '${_greeting()}${name.isEmpty ? '' : ','}',

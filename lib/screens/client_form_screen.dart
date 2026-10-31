@@ -1,12 +1,17 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../models/client_record.dart';
 import '../models/options.dart';
 import '../models/stages.dart';
 import '../services/auth_service.dart';
+import '../services/client_photo_service.dart';
 import '../services/client_repository.dart';
+import '../widgets/client_avatar.dart';
 
 /// Full-screen client form with six organised sections (Personal, Academic,
 /// Passport & travel, Application, Documents, Notes). "Documents" tracks the
@@ -85,6 +90,10 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
   Set<String> _docs = {};
   List<Map<String, dynamic>> _team = const [];
   bool _saving = false;
+  late String _photoPath;
+  Uint8List? _pendingPhoto;
+  String _pendingPhotoExt = 'jpg';
+  bool _removePhoto = false;
 
   final _today = DateTime.now();
 
@@ -145,6 +154,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
         'Not started';
     _consultantName = _detailText('consultant');
     _docs = {...ClientRecord.receivedDocuments(details)};
+    _photoPath = widget.existing?.photoPath ?? '';
     _loadTeam();
   }
 
@@ -172,6 +182,128 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
     super.dispose();
   }
 
+  Future<ImageSource?> _choosePhotoSource() => showModalBottomSheet<ImageSource>(
+    context: context,
+    builder:
+        (sheetContext) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(14),
+                child: Text(
+                  'Client photo',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take a photo'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+  );
+
+  Future<void> _pickPhoto() async {
+    final source = await _choosePhotoSource();
+    if (source == null) return;
+    try {
+      final file = await ClientPhotoService.pick(source);
+      if (file == null) return;
+      final ext = ClientPhotoService.extensionOf(file.name);
+      if (!ClientPhotoService.isSupportedExtension(ext)) {
+        _snack('Client photos must be JPG or PNG.');
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 15 * 1024 * 1024) {
+        _snack('That photo is too large. Choose a smaller image.');
+        return;
+      }
+      if (!mounted) return;
+      setState(() {
+        _pendingPhoto = bytes;
+        _pendingPhotoExt = ext;
+        _removePhoto = false;
+      });
+    } catch (e) {
+      _snack('Could not pick a photo: ${'$e'.replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  Widget _photoEditor() {
+    final hasPhoto =
+        _pendingPhoto != null || (!_removePhoto && _photoPath.isNotEmpty);
+    final avatar =
+        _pendingPhoto != null
+            ? ClipOval(
+              child: Image.memory(
+                _pendingPhoto!,
+                width: 76,
+                height: 76,
+                fit: BoxFit.cover,
+              ),
+            )
+            : ClientAvatar(
+              photoPath: _removePhoto ? '' : _photoPath,
+              name: _name.text,
+              size: 76,
+            );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        children: [
+          avatar,
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _pickPhoto,
+                      icon: const Icon(Icons.add_a_photo_outlined, size: 18),
+                      label: Text(hasPhoto ? 'Change photo' : 'Add photo'),
+                    ),
+                    if (hasPhoto)
+                      TextButton.icon(
+                        onPressed:
+                            () => setState(() {
+                              _pendingPhoto = null;
+                              _removePhoto = true;
+                            }),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: const Text('Remove'),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'JPG or PNG. Large photos are resized before upload.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.65),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _save() async {
     final valid = _formKey.currentState?.validate() ?? false;
     if (!valid) {
@@ -190,6 +322,39 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
     }
     if (!mounted) return;
     setState(() => _saving = true);
+
+    final clientId = widget.existing?.id ?? widget.repo.local.newId();
+    var photoPath = _removePhoto ? '' : _photoPath;
+    String? oldPhotoToDelete;
+
+    if (_pendingPhoto != null) {
+      final workspaceId = widget.auth.workspaceId;
+      if (workspaceId == null) {
+        if (mounted) setState(() => _saving = false);
+        _snack('Join or create a workspace before uploading a client photo.');
+        return;
+      }
+      try {
+        final newPath = await ClientPhotoService().upload(
+          workspaceId: workspaceId,
+          clientId: clientId,
+          bytes: _pendingPhoto!,
+          extension: _pendingPhotoExt,
+        );
+        if (_photoPath.isNotEmpty && _photoPath != newPath) {
+          oldPhotoToDelete = _photoPath;
+        }
+        photoPath = newPath;
+      } catch (e) {
+        if (mounted) setState(() => _saving = false);
+        _snack(
+          'Photo upload failed: ${'$e'.replaceFirst('Exception: ', '')}',
+        );
+        return;
+      }
+    } else if (_removePhoto && _photoPath.isNotEmpty) {
+      oldPhotoToDelete = _photoPath;
+    }
 
     final consultantName =
         _team.isEmpty ? _consultant.text.trim() : (_consultantName ?? '');
@@ -214,7 +379,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
     details['follow_up'] = _followUp.text.trim();
 
     final record = ClientRecord(
-      id: widget.existing?.id ?? widget.repo.local.newId(),
+      id: clientId,
       fullName: _name.text.trim(),
       email: _email.text.trim(),
       phone: _phone.text.trim(),
@@ -225,17 +390,25 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
       stage: _stage,
       visaStatus: _visaStatus,
       archived: widget.existing?.archived ?? false,
+      photoPath: photoPath,
       details: details,
       updatedAt: DateTime.now(),
     );
 
     String message = 'Client saved';
+    var onlineSaveFailed = false;
     try {
       await widget.repo.upsert(record);
     } catch (e) {
+      onlineSaveFailed = true;
       message = 'Saved on this device. Online save failed: '
               '$e'
           .replaceFirst('Exception: ', '');
+    }
+    if (oldPhotoToDelete != null && !onlineSaveFailed) {
+      try {
+        await ClientPhotoService().remove(oldPhotoToDelete);
+      } catch (_) {}
     }
     if (!mounted) return;
     ScaffoldMessenger.of(
@@ -412,6 +585,7 @@ class _ClientFormScreenState extends State<ClientFormScreen> {
 
   List<Widget> personalSection() => [
     _heading(Icons.person_outline_rounded, 'Personal'),
+    _photoEditor(),
     _field(
       _name,
       'Full name *',

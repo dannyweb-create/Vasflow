@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:typed_data';
 
 import '../models/application_record.dart';
@@ -203,10 +204,34 @@ class DocumentRepository {
     }
   }
 
-  /// Bytes for saving a copy on the device. Requires the backend.
-  Future<Uint8List?> download(String filePath) async {
+  /// A short-lived private link. Only signed URLs are ever handed to the UI.
+  Future<String> createSignedUrl(String filePath, {int seconds = 60}) async {
+    if (!AppConfig.supabaseReady) {
+      throw Exception('Signed document links need a Supabase connection.');
+    }
+    return Supabase.instance.client.storage
+        .from(bucket)
+        .createSignedUrl(filePath, seconds);
+  }
+
+  /// Downloads bytes through a short-lived signed URL for saving a copy.
+  Future<Uint8List?> download(String filePath, {int seconds = 60}) async {
     if (!AppConfig.supabaseReady) return null;
-    return Supabase.instance.client.storage.from(bucket).download(filePath);
+    final url = await createSignedUrl(filePath, seconds: seconds);
+    final client = HttpClient();
+    try {
+      final request = await client.getUrl(Uri.parse(url));
+      final response = await request.close();
+      if (response.statusCode != HttpStatus.ok) {
+        await response.drain<void>();
+        throw Exception('Download failed (${response.statusCode}).');
+      }
+      final builder = BytesBuilder(copy: false);
+      await response.forEach(builder.add);
+      return builder.takeBytes();
+    } finally {
+      client.close(force: true);
+    }
   }
 
   /// Uploads bytes into the workspace/client folder and returns the path.

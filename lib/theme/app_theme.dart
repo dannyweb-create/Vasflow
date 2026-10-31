@@ -53,19 +53,25 @@ ThemeData _dark() {
     onPrimaryContainer: Brand.mint,
     surface: Brand.darkBackground,
     onSurface: const Color(0xFFE6F2EA),
-    surfaceContainerLowest: const Color(0xFF0B100D),
-    surfaceContainerLow: const Color(0xFF18241D),
-    surfaceContainer: const Color(0xFF1B2A22),
-    surfaceContainerHigh: const Color(0xFF203228),
-    surfaceContainerHighest: const Color(0xFF25382D),
-    outline: const Color(0xFF7E9A8B),
-    outlineVariant: const Color(0xFF2C4136),
+    surfaceContainerLowest: const Color(0xFF05100A),
+    surfaceContainerLow: const Color(0xFF0B1C14),
+    surfaceContainer: const Color(0xFF10251B),
+    surfaceContainerHigh: const Color(0xFF142B21),
+    surfaceContainerHighest: const Color(0xFF1A3428),
+    outline: const Color(0xFF8FB8A2),
+    outlineVariant: const Color(0xFF335244),
   );
   return _finish(
     scheme,
-    scaffold: Brand.darkBackground,
-    cardColor: const Color(0xFF18241D),
-    cardBorder: scheme.outlineVariant,
+    scaffold: Colors.transparent,
+    cardColor: Brand.darkCardFill,
+    cardBorder: Brand.darkGlassBorder,
+    transitions: const PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: GlassPageTransitionsBuilder(),
+        TargetPlatform.iOS: GlassPageTransitionsBuilder(),
+      },
+    ),
   );
 }
 
@@ -115,8 +121,9 @@ ThemeData _finish(
   List<ThemeExtension<dynamic>> extensions = const <ThemeExtension<dynamic>>[],
   PageTransitionsTheme transitions = const PageTransitionsTheme(),
 }) {
+  final dark = scheme.brightness == Brightness.dark;
   final buttonShape = RoundedRectangleBorder(
-    borderRadius: BorderRadius.circular(14),
+    borderRadius: BorderRadius.circular(AppRadii.button),
   );
   const buttonText = TextStyle(fontSize: 16, fontWeight: FontWeight.w700);
 
@@ -128,14 +135,34 @@ ThemeData _finish(
     canvasColor: scheme.surfaceContainerHigh,
     extensions: extensions,
     pageTransitionsTheme: transitions,
+    appBarTheme: const AppBarTheme(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      scrolledUnderElevation: 0,
+    ),
     cardTheme: CardThemeData(
       color: cardColor,
-      elevation: 0,
+      elevation: dark ? 6 : 0,
+      shadowColor:
+          dark ? Colors.black.withValues(alpha: 0.55) : Colors.transparent,
       margin: EdgeInsets.zero,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(AppRadii.card),
         side: BorderSide(color: cardBorder),
+      ),
+    ),
+    floatingActionButtonTheme: FloatingActionButtonThemeData(
+      backgroundColor: scheme.primary,
+      foregroundColor: scheme.onPrimary,
+      splashColor: scheme.onPrimary.withValues(alpha: 0.16),
+      elevation: 4,
+      focusElevation: 4,
+      hoverElevation: 6,
+      highlightElevation: 8,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.button + 2),
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -155,7 +182,9 @@ ThemeData _finish(
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadii.button),
+      ),
     ),
     dividerTheme: DividerThemeData(color: scheme.outlineVariant, space: 1),
   );
@@ -166,20 +195,38 @@ ThemeData _finish(
   );
   final textTheme = applied.copyWith(
     displaySmall: applied.displaySmall?.copyWith(
+      fontSize: 38,
+      fontWeight: FontWeight.w800,
+      letterSpacing: -0.6,
+    ),
+    headlineMedium: applied.headlineMedium?.copyWith(
+      fontSize: 30,
       fontWeight: FontWeight.w800,
       letterSpacing: -0.5,
     ),
-    headlineMedium: applied.headlineMedium?.copyWith(
+    headlineSmall: applied.headlineSmall?.copyWith(
+      fontSize: 26,
       fontWeight: FontWeight.w800,
       letterSpacing: -0.4,
     ),
-    headlineSmall: applied.headlineSmall?.copyWith(
+    titleLarge: applied.titleLarge?.copyWith(
+      fontSize: 22,
       fontWeight: FontWeight.w800,
       letterSpacing: -0.3,
     ),
-    titleLarge: applied.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-    titleMedium: applied.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-    bodyMedium: applied.bodyMedium?.copyWith(height: 1.35),
+    titleMedium: applied.titleMedium?.copyWith(
+      fontSize: 17,
+      fontWeight: FontWeight.w600,
+    ),
+    bodyLarge: applied.bodyLarge?.copyWith(height: 1.4),
+    bodyMedium: applied.bodyMedium?.copyWith(fontSize: 15, height: 1.4),
   );
-  return base.copyWith(textTheme: textTheme);
+  return base.copyWith(
+    textTheme: textTheme,
+    appBarTheme: base.appBarTheme.copyWith(
+      foregroundColor: scheme.onSurface,
+      iconTheme: IconThemeData(color: scheme.onSurface),
+      titleTextStyle: textTheme.titleLarge,
+    ),
+  );
 }
