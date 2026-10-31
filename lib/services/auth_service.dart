@@ -16,6 +16,24 @@ class AuthService {
   String get currentEmail =>
       online ? (Supabase.instance.client.auth.currentUser?.email ?? '') : '';
 
+  String get currentUserId =>
+      online ? (Supabase.instance.client.auth.currentUser?.id ?? '') : '';
+
+  /// The name the signed-in person chose for themselves. Falls back to the
+  /// email prefix so the Profile tab always has something friendly to show.
+  String get displayName {
+    if (!online) return '';
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return '';
+    final metadata = user.userMetadata;
+    final stored =
+        '${metadata?['full_name'] ?? metadata?['name'] ?? ''}'.trim();
+    if (stored.isNotEmpty) return stored;
+    final email = user.email ?? '';
+    if (email.contains('@')) return email.split('@').first;
+    return user.phone ?? '';
+  }
+
   /// Used only to show or hide buttons. Real permissions are enforced by
   /// Supabase Row Level Security on the server, never by this value.
   String get role => _role;
@@ -23,6 +41,15 @@ class AuthService {
   String? get workspaceId => _workspaceId;
   String get workspaceName => _workspaceName;
   bool get hasWorkspace => _workspaceId != null;
+
+  /// Admin photos live in the private client-photos bucket alongside client
+  /// photos, at a stable path so they can be replaced and removed.
+  String? get adminPhotoPath {
+    final workspace = _workspaceId;
+    final user = currentUserId;
+    if (workspace == null || workspace.isEmpty || user.isEmpty) return null;
+    return '$workspace/admin-$user.jpg';
+  }
 
   void _requireOnline() {
     if (!online) {
@@ -117,7 +144,10 @@ class AuthService {
         .toList();
   }
 
-  Future<void> signUp({
+  /// Returns true when sign-up produced a session immediately. Email or phone
+  /// confirmation can delay the session, in which case the person must confirm
+  /// and log in before an invitation code can be redeemed.
+  Future<bool> signUp({
     String? email,
     String? phone,
     required String password,
@@ -125,19 +155,45 @@ class AuthService {
     _requireOnline();
     final cleanEmail = (email ?? '').trim();
     final cleanPhone = (phone ?? '').trim();
-    await _guard(
+    final response = await _guard(
       () => Supabase.instance.client.auth.signUp(
         email: cleanEmail.isEmpty ? null : cleanEmail,
         phone: cleanPhone.isEmpty ? null : cleanPhone,
         password: password,
       ),
     );
+    return response.session != null;
   }
 
   Future<void> resetPassword(String email) async {
     _requireOnline();
     await _guard(
       () => Supabase.instance.client.auth.resetPasswordForEmail(email.trim()),
+    );
+  }
+
+  Future<void> updateDisplayName(String name) async {
+    _requireOnline();
+    final clean = name.trim();
+    if (clean.isEmpty) throw Exception('Enter your name.');
+    await _guard(
+      () => Supabase.instance.client.auth.updateUser(
+        UserAttributes(data: {'full_name': clean}),
+      ),
+    );
+  }
+
+  /// Changes the password for the signed-in account. The value is sent
+  /// straight to Supabase and is never stored by the app.
+  Future<void> changePassword(String newPassword) async {
+    _requireOnline();
+    if (newPassword.length < 6) {
+      throw Exception('Use at least 6 characters for your new password.');
+    }
+    await _guard(
+      () => Supabase.instance.client.auth.updateUser(
+        UserAttributes(password: newPassword),
+      ),
     );
   }
 

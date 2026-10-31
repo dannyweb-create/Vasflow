@@ -14,6 +14,7 @@ extension ClientRecordStageCopy on ClientRecord {
     stage: next,
     updatedAt: DateTime.now(),
     archived: archived,
+    photoPath: photoPath,
     details: details,
   );
 
@@ -28,6 +29,7 @@ extension ClientRecordStageCopy on ClientRecord {
     String? notes,
     String? stage,
     bool? archived,
+    String? photoPath,
     DateTime? updatedAt,
     Map<String, dynamic>? details,
   }) => ClientRecord(
@@ -42,6 +44,7 @@ extension ClientRecordStageCopy on ClientRecord {
     notes: notes ?? this.notes,
     stage: stage ?? this.stage,
     archived: archived ?? this.archived,
+    photoPath: photoPath ?? this.photoPath,
     details: details ?? this.details,
     updatedAt: updatedAt ?? this.updatedAt,
   );

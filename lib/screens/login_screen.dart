@@ -4,10 +4,13 @@ import '../services/app_config.dart';
 import '../services/auth_service.dart';
 import 'home_router.dart';
 import 'forgot_password_screen.dart';
+import 'join_workspace_screen.dart';
+import 'onboarding_screen.dart';
 import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? inviteCode;
+  const LoginScreen({super.key, this.inviteCode});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -42,9 +45,33 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       await auth.signIn(id.text, password.text);
       if (!mounted) return;
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => homeFor(auth)));
+      final code = widget.inviteCode?.trim() ?? '';
+      if (code.isEmpty) {
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => homeFor(auth)));
+        return;
+      }
+      try {
+        await auth.joinWorkspace(code);
+        if (!mounted) return;
+        Navigator.of(
+          context,
+        ).pushReplacement(MaterialPageRoute(builder: (_) => homeFor(auth)));
+      } catch (e) {
+        if (!mounted) return;
+        final message = e.toString().replaceFirst('Exception: ', '');
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder:
+                (_) => OnboardingScreen(
+                  auth: auth,
+                  initialInviteCode: code,
+                  initialError: 'We could not join that workspace: $message',
+                ),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         setState(() => error = e.toString().replaceFirst('Exception: ', ''));
@@ -186,6 +213,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         MaterialPageRoute(builder: (_) => const SignupScreen()),
                       ),
                   child: const Text('Create account'),
+                ),
+                TextButton(
+                  onPressed:
+                      () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder:
+                              (_) => JoinWorkspaceScreen(
+                                initialCode: widget.inviteCode,
+                              ),
+                        ),
+                      ),
+                  child: const Text('Join workspace with invitation code'),
                 ),
               ],
             ),

@@ -28,6 +28,44 @@ class GlassBackdrop extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    if (dark) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment(0, -0.9),
+                radius: 1.25,
+                colors: [
+                  Brand.darkGradientCore,
+                  Brand.darkGradientMid,
+                  Brand.darkGradientEdge,
+                ],
+                stops: [0.0, 0.55, 1.0],
+              ),
+            ),
+          ),
+          Positioned(
+            top: -130,
+            left: -100,
+            child: _glow(320, Brand.darkGlow.withValues(alpha: 0.42)),
+          ),
+          Positioned(
+            top: -90,
+            right: -110,
+            child: _glow(300, Brand.green.withValues(alpha: 0.26)),
+          ),
+          Positioned(
+            bottom: -180,
+            left: -90,
+            child: _glow(360, Brand.deepGreen.withValues(alpha: 0.20)),
+          ),
+          child,
+        ],
+      );
+    }
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -98,13 +136,14 @@ class GlassPanel extends StatelessWidget {
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
-    this.radius = 22,
+    this.radius = AppRadii.card,
     this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (!isGlass(context)) {
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    if (!isGlass(context) && !dark) {
       return Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
@@ -117,18 +156,24 @@ class GlassPanel extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: borderRadius,
-        boxShadow: [
-          BoxShadow(
-            color: Brand.deepGreen.withValues(alpha: 0.16),
-            blurRadius: 28,
-            offset: const Offset(0, 12),
-          ),
-        ],
+        boxShadow:
+            dark
+                ? AppShadows.glass
+                : [
+                  BoxShadow(
+                    color: Brand.deepGreen.withValues(alpha: 0.16),
+                    blurRadius: 28,
+                    offset: const Offset(0, 12),
+                  ),
+                ],
       ),
       child: ClipRRect(
         borderRadius: borderRadius,
         child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
+          filter: ImageFilter.blur(
+            sigmaX: dark ? 18 : 14,
+            sigmaY: dark ? 18 : 14,
+          ),
           child: Material(
             type: MaterialType.transparency,
             child: Ink(
@@ -137,13 +182,22 @@ class GlassPanel extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Colors.white.withValues(alpha: 0.74),
-                    Colors.white.withValues(alpha: 0.40),
-                  ],
+                  colors:
+                      dark
+                          ? const [
+                            Brand.darkGlassFillTop,
+                            Brand.darkGlassFillBottom,
+                          ]
+                          : [
+                            Colors.white.withValues(alpha: 0.74),
+                            Colors.white.withValues(alpha: 0.40),
+                          ],
                 ),
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.85),
+                  color:
+                      dark
+                          ? Brand.darkGlassBorder
+                          : Colors.white.withValues(alpha: 0.85),
                   width: 1,
                 ),
               ),
