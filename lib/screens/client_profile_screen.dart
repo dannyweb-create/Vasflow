@@ -13,7 +13,9 @@ import '../services/client_photo_service.dart';
 import '../services/client_repository.dart';
 import '../services/local_store.dart';
 import '../theme/glass_widgets.dart';
+import '../utils/client_export.dart';
 import '../utils/dates.dart';
+import '../utils/file_export.dart';
 import '../widgets/client_avatar.dart';
 import '../widgets/document_status_badge.dart';
 import 'applications_screen.dart';
@@ -43,6 +45,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   late final DocumentRepository _documentsRepo;
   List<DocumentRecord> _documents = [];
   bool _docsLoading = true;
+  bool _exporting = false;
   String? _docsError;
 
   @override
@@ -94,34 +97,37 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  Future<ImageSource?> _choosePhotoSource() => showModalBottomSheet<ImageSource>(
-    context: context,
-    builder:
-        (sheetContext) => SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(14),
-                child: Text(
-                  'Client photo',
-                  style: TextStyle(fontWeight: FontWeight.w700),
-                ),
+  Future<ImageSource?> _choosePhotoSource() =>
+      showModalBottomSheet<ImageSource>(
+        context: context,
+        builder:
+            (sheetContext) => SafeArea(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.all(14),
+                    child: Text(
+                      'Client photo',
+                      style: TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_camera_outlined),
+                    title: const Text('Take a photo'),
+                    onTap:
+                        () => Navigator.pop(sheetContext, ImageSource.camera),
+                  ),
+                  ListTile(
+                    leading: const Icon(Icons.photo_library_outlined),
+                    title: const Text('Choose from gallery'),
+                    onTap:
+                        () => Navigator.pop(sheetContext, ImageSource.gallery),
+                  ),
+                ],
               ),
-              ListTile(
-                leading: const Icon(Icons.photo_camera_outlined),
-                title: const Text('Take a photo'),
-                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
-              ),
-              ListTile(
-                leading: const Icon(Icons.photo_library_outlined),
-                title: const Text('Choose from gallery'),
-                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
-              ),
-            ],
-          ),
-        ),
-  );
+            ),
+      );
 
   Future<void> _showPhotoActions() async {
     final hasPhoto = _client.photoPath.isNotEmpty;
@@ -141,12 +147,20 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                   ),
                 ListTile(
                   leading: const Icon(Icons.photo_camera_outlined),
-                  title: Text(hasPhoto ? 'Change photo with camera' : 'Add photo with camera'),
+                  title: Text(
+                    hasPhoto
+                        ? 'Change photo with camera'
+                        : 'Add photo with camera',
+                  ),
                   onTap: () => Navigator.pop(sheetContext, 'camera'),
                 ),
                 ListTile(
                   leading: const Icon(Icons.photo_library_outlined),
-                  title: Text(hasPhoto ? 'Change photo from gallery' : 'Add photo from gallery'),
+                  title: Text(
+                    hasPhoto
+                        ? 'Change photo from gallery'
+                        : 'Add photo from gallery',
+                  ),
                   onTap: () => Navigator.pop(sheetContext, 'gallery'),
                 ),
                 if (hasPhoto)
@@ -295,10 +309,7 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
           ),
     );
     if (yes != true) return;
-    final updated = _client.copyWith(
-      photoPath: '',
-      updatedAt: DateTime.now(),
-    );
+    final updated = _client.copyWith(photoPath: '', updatedAt: DateTime.now());
     try {
       await widget.repo.upsert(updated);
       var fileRemoved = true;
@@ -459,6 +470,19 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                   ),
                 ),
               ),
+              if (widget.auth.isAdmin)
+                IconButton(
+                  tooltip: 'Export client',
+                  onPressed: _exporting ? null : _exportClient,
+                  icon:
+                      _exporting
+                          ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                          : const Icon(Icons.ios_share_outlined),
+                ),
               IconButton(
                 tooltip: 'Edit client',
                 onPressed: _edit,
@@ -647,6 +671,16 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                     _setArchived();
                   },
                 ),
+                if (widget.auth.isAdmin)
+                  ListTile(
+                    leading: const Icon(Icons.ios_share_outlined),
+                    title: const Text('Export client'),
+                    subtitle: const Text('PDF, XLSX, CSV or JSON'),
+                    onTap: () {
+                      Navigator.pop(sheetContext);
+                      _exportClient();
+                    },
+                  ),
                 if (widget.auth.role == 'admin')
                   ListTile(
                     leading: Icon(
@@ -767,6 +801,174 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       ),
     );
     if (mounted) await _reloadClient();
+  }
+
+  Future<void> _exportClient() async {
+    if (!widget.auth.isAdmin) {
+      _snack('Only an Admin can export client data.');
+      return;
+    }
+    final choice = await showModalBottomSheet<_ClientExportChoice>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        var format = ClientExportFormat.pdf;
+        var includeDocuments = false;
+        return StatefulBuilder(
+          builder:
+              (context, setSheetState) => SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Export client',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Document names and statuses are always included.',
+                        style: TextStyle(
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.65),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      RadioGroup<ClientExportFormat>(
+                        groupValue: format,
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setSheetState(() => format = value);
+                        },
+                        child: Column(
+                          children: [
+                            for (final option in ClientExportFormat.values)
+                              RadioListTile<ClientExportFormat>(
+                                value: option,
+                                contentPadding: EdgeInsets.zero,
+                                title: Text(option.label),
+                                subtitle: Text(option.description),
+                              ),
+                          ],
+                        ),
+                      ),
+                      SwitchListTile(
+                        contentPadding: EdgeInsets.zero,
+                        value: includeDocuments,
+                        onChanged: (value) {
+                          setSheetState(() => includeDocuments = value);
+                        },
+                        title: const Text('Include document files (ZIP)'),
+                        subtitle: const Text(
+                          'Bundles the export and the original uploaded files '
+                          'in one ZIP.',
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.icon(
+                          onPressed: () {
+                            Navigator.pop(
+                              sheetContext,
+                              _ClientExportChoice(
+                                format: format,
+                                includeDocuments: includeDocuments,
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.download_outlined),
+                          label: Text(
+                            includeDocuments
+                                ? 'Export ZIP'
+                                : 'Export ${format.label}',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+        );
+      },
+    );
+    if (choice == null || !mounted) return;
+    await _runExport(choice);
+  }
+
+  Future<void> _runExport(_ClientExportChoice choice) async {
+    setState(() => _exporting = true);
+    try {
+      final applications = await ApplicationRepository(
+        LocalStore(),
+        workspaceId: widget.auth.workspaceId,
+      ).forClient(_client.id);
+      final payments = await PaymentRepository(
+        LocalStore(),
+        workspaceId: widget.auth.workspaceId,
+      ).forClient(_client.id);
+      final documents = await _documentsRepo.forClient(_client.id);
+      final data = ClientExportData(
+        client: _client,
+        applications: applications,
+        payments: payments,
+        documents: documents,
+      );
+
+      Uint8List bytes;
+      var fileName = clientExportFileName(data, choice.format);
+      String? note;
+      if (choice.includeDocuments) {
+        final files = <String, Uint8List>{};
+        var missing = 0;
+        for (final document in documents) {
+          if (document.filePath.trim().isEmpty) {
+            missing++;
+            continue;
+          }
+          try {
+            final downloaded = await _documentsRepo.download(document.filePath);
+            if (downloaded == null) {
+              missing++;
+            } else {
+              files[document.id] = downloaded;
+            }
+          } catch (_) {
+            missing++;
+          }
+        }
+        bytes = await buildClientExportZip(data, choice.format, files);
+        fileName = clientExportFileName(data, choice.format, zip: true);
+        if (missing > 0) {
+          note =
+              '$missing document file${missing == 1 ? '' : 's'} '
+              'could not be downloaded.';
+        }
+      } else {
+        bytes = await buildClientExport(data, choice.format);
+      }
+
+      if (!mounted) return;
+      await saveBytes(
+        context,
+        bytes,
+        fileName: fileName,
+        dialogTitle: 'Export ${_client.fullName}',
+      );
+      if (note != null && mounted) _snack(note);
+    } catch (e) {
+      if (mounted) {
+        _snack('Export failed: ${'$e'.replaceFirst('Exception: ', '')}');
+      }
+    } finally {
+      if (mounted) setState(() => _exporting = false);
+    }
   }
 
   Widget _infoRow(String label, String value) {
@@ -1397,6 +1599,16 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       ),
     );
   }
+}
+
+class _ClientExportChoice {
+  final ClientExportFormat format;
+  final bool includeDocuments;
+
+  const _ClientExportChoice({
+    required this.format,
+    required this.includeDocuments,
+  });
 }
 
 class _ProfileTabsDelegate extends SliverPersistentHeaderDelegate {
