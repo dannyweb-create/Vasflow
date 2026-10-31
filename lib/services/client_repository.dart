@@ -12,7 +12,7 @@ class ClientRepository {
   /// Columns that may be missing until the updated schema.sql has been run in
   /// Supabase. Saving still works without them; they are stripped from the
   /// payload and retried once if the server rejects them.
-  static const _optionalColumns = {'archived', 'profile'};
+  static const _optionalColumns = {'archived', 'profile', 'photo_path'};
 
   Future<List<ClientRecord>> all() async {
     if (!AppConfig.supabaseReady) return local.getClients();

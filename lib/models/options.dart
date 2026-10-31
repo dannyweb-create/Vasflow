@@ -44,8 +44,36 @@ const kDocumentTypes = [
   'Financial evidence',
   'Offer letter',
   'Visa forms',
+  'Passport photographs',
+  'Birth certificate',
+  'Secondary school certificates',
+  'Degree certificates',
+  'Statement of Purpose',
+  'Recommendation letters',
+  'Proof of funds',
+  'Sponsorship letter',
+  'CAS or I-20',
+  'Visa appointment confirmation',
+  'Medical or TB certificate',
+  'Police clearance',
+  'Accommodation evidence',
+  'Travel insurance',
+  'Previous visa records',
   'Other supporting documents',
 ];
+
+/// Document review statuses stored in client_documents.status.
+const kDocumentStatuses = [
+  'Uploaded',
+  'Under review',
+  'Approved',
+  'Rejected',
+  'Needs replacement',
+];
+
+bool isDocumentApproved(String status) => status == 'Approved';
+
+bool isDocumentOutstanding(String status) => !isDocumentApproved(status);
 
 /// Fee types for payment records.
 const kFeeTypes = [

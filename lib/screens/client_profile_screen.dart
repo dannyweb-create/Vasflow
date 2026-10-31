@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../models/client_record.dart';
 import '../models/client_record_extensions.dart';
 import '../models/document_record.dart';
+import '../models/options.dart';
 import '../services/auth_service.dart';
 import '../services/business_repositories.dart';
+import '../services/client_photo_service.dart';
 import '../services/client_repository.dart';
 import '../services/local_store.dart';
 import '../theme/glass_widgets.dart';
 import '../utils/dates.dart';
+import '../widgets/client_avatar.dart';
+import '../widgets/document_status_badge.dart';
 import 'applications_screen.dart';
 import 'client_form_screen.dart';
 import 'documents_screen.dart';
@@ -89,17 +94,229 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
-  String _initials(String name) {
-    final parts =
-        name
-            .trim()
-            .split(RegExp(r'\s+'))
-            .where((part) => part.isNotEmpty)
-            .toList();
-    if (parts.isEmpty) return '?';
-    if (parts.length == 1) return parts.first.substring(0, 1).toUpperCase();
-    return '${parts.first.substring(0, 1)}${parts.last.substring(0, 1)}'
-        .toUpperCase();
+  Future<ImageSource?> _choosePhotoSource() => showModalBottomSheet<ImageSource>(
+    context: context,
+    builder:
+        (sheetContext) => SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(14),
+                child: Text(
+                  'Client photo',
+                  style: TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_outlined),
+                title: const Text('Take a photo'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.camera),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_outlined),
+                title: const Text('Choose from gallery'),
+                onTap: () => Navigator.pop(sheetContext, ImageSource.gallery),
+              ),
+            ],
+          ),
+        ),
+  );
+
+  Future<void> _showPhotoActions() async {
+    final hasPhoto = _client.photoPath.isNotEmpty;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder:
+          (sheetContext) => SafeArea(
+            child: ListView(
+              shrinkWrap: true,
+              children: [
+                if (hasPhoto)
+                  ListTile(
+                    leading: const Icon(Icons.visibility_outlined),
+                    title: const Text('View photo'),
+                    onTap: () => Navigator.pop(sheetContext, 'view'),
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.photo_camera_outlined),
+                  title: Text(hasPhoto ? 'Change photo with camera' : 'Add photo with camera'),
+                  onTap: () => Navigator.pop(sheetContext, 'camera'),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.photo_library_outlined),
+                  title: Text(hasPhoto ? 'Change photo from gallery' : 'Add photo from gallery'),
+                  onTap: () => Navigator.pop(sheetContext, 'gallery'),
+                ),
+                if (hasPhoto)
+                  ListTile(
+                    leading: Icon(
+                      Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    title: Text(
+                      'Remove photo',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                    onTap: () => Navigator.pop(sheetContext, 'remove'),
+                  ),
+              ],
+            ),
+          ),
+    );
+    if (action == 'view') await _viewClientPhoto();
+    if (action == 'camera') await _pickClientPhoto(ImageSource.camera);
+    if (action == 'gallery') await _pickClientPhoto(ImageSource.gallery);
+    if (action == 'remove') await _removeClientPhoto();
+  }
+
+  Future<void> _viewClientPhoto() async {
+    final path = _client.photoPath;
+    if (path.isEmpty) return;
+    try {
+      final url = await ClientPhotoService().signedUrl(path, seconds: 60);
+      if (url == null || url.isEmpty || !mounted) return;
+      await showDialog<void>(
+        context: context,
+        builder:
+            (dialogContext) => Dialog(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ),
+                  Flexible(
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                      child: InteractiveViewer(
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.contain,
+                          errorBuilder:
+                              (context, error, stackTrace) => const Padding(
+                                padding: EdgeInsets.all(24),
+                                child: Text('Could not load this photo.'),
+                              ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+      );
+    } catch (e) {
+      _snack('Photo preview failed: ${'$e'.replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  Future<void> _pickClientPhoto(ImageSource source) async {
+    try {
+      final file = await ClientPhotoService.pick(source);
+      if (file == null) return;
+      final ext = ClientPhotoService.extensionOf(file.name);
+      if (!ClientPhotoService.isSupportedExtension(ext)) {
+        _snack('Client photos must be JPG or PNG.');
+        return;
+      }
+      final bytes = await file.readAsBytes();
+      if (bytes.length > 15 * 1024 * 1024) {
+        _snack('That photo is too large. Choose a smaller image.');
+        return;
+      }
+      final workspaceId = widget.auth.workspaceId;
+      if (workspaceId == null) {
+        _snack('Join or create a workspace before uploading a client photo.');
+        return;
+      }
+      final service = ClientPhotoService();
+      String? newPath;
+      try {
+        newPath = await service.upload(
+          workspaceId: workspaceId,
+          clientId: _client.id,
+          bytes: bytes,
+          extension: ext,
+        );
+        final oldPath = _client.photoPath;
+        final updated = _client.copyWith(
+          photoPath: newPath,
+          updatedAt: DateTime.now(),
+        );
+        await widget.repo.upsert(updated);
+        if (oldPath.isNotEmpty && oldPath != newPath) {
+          try {
+            await service.remove(oldPath);
+          } catch (_) {}
+        }
+        if (!mounted) return;
+        setState(() => _client = updated);
+        _snack('Client photo updated');
+      } catch (e) {
+        if (newPath != null) {
+          try {
+            await service.remove(newPath);
+          } catch (_) {}
+        }
+        _snack('Photo update failed: ${'$e'.replaceFirst('Exception: ', '')}');
+      }
+    } catch (e) {
+      _snack('Could not pick a photo: ${'$e'.replaceFirst('Exception: ', '')}');
+    }
+  }
+
+  Future<void> _removeClientPhoto() async {
+    final oldPath = _client.photoPath;
+    if (oldPath.isEmpty) return;
+    final yes = await showDialog<bool>(
+      context: context,
+      builder:
+          (dialogContext) => AlertDialog(
+            title: const Text('Remove client photo?'),
+            content: const Text('The stored photo will also be deleted.'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogContext, false),
+                child: const Text('Cancel'),
+              ),
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Remove'),
+              ),
+            ],
+          ),
+    );
+    if (yes != true) return;
+    final updated = _client.copyWith(
+      photoPath: '',
+      updatedAt: DateTime.now(),
+    );
+    try {
+      await widget.repo.upsert(updated);
+      var fileRemoved = true;
+      try {
+        await ClientPhotoService().remove(oldPath);
+      } catch (_) {
+        fileRemoved = false;
+      }
+      if (!mounted) return;
+      setState(() => _client = updated);
+      _snack(
+        fileRemoved
+            ? 'Client photo removed'
+            : 'Photo removed, but the stored file could not be deleted.',
+      );
+    } catch (e) {
+      _snack('Could not remove photo: ${'$e'.replaceFirst('Exception: ', '')}');
+    }
   }
 
   String _detail(String key) {
@@ -159,21 +376,37 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
 
   Widget _avatar({double size = 68}) {
     final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer,
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        _initials(_client.fullName),
-        style: TextStyle(
-          fontSize: size * 0.33,
-          fontWeight: FontWeight.w800,
-          color: scheme.onPrimaryContainer,
-        ),
+    return GestureDetector(
+      onTap: _showPhotoActions,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          ClientAvatar(
+            photoPath: _client.photoPath,
+            name: _client.fullName,
+            size: size,
+          ),
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              width: 25,
+              height: 25,
+              decoration: BoxDecoration(
+                color: scheme.primary,
+                shape: BoxShape.circle,
+                border: Border.all(color: scheme.surface, width: 2),
+              ),
+              child: Icon(
+                _client.photoPath.isEmpty
+                    ? Icons.add_a_photo_outlined
+                    : Icons.edit_outlined,
+                size: 13,
+                color: scheme.onPrimary,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -768,8 +1001,8 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
   String _documentSubtitle(DocumentRecord doc) {
     return [
       doc.category,
+      'Uploaded ${DateFormat('d MMM y').format(doc.updatedAt)}',
       if (_sizeLabel(doc.sizeBytes).isNotEmpty) _sizeLabel(doc.sizeBytes),
-      timeAgo(doc.updatedAt, DateTime.now()),
     ].join(' · ');
   }
 
@@ -806,6 +1039,10 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
       );
     }
     final count = _documents.length;
+    final approved =
+        _documents.where((d) => isDocumentApproved(d.status)).length;
+    final outstanding =
+        _documents.where((d) => isDocumentOutstanding(d.status)).length;
     return ListView(
       key: const PageStorageKey('client-documents'),
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 28),
@@ -813,11 +1050,31 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
         Row(
           children: [
             Expanded(
-              child: Text(
-                '$count ${count == 1 ? 'document' : 'documents'} on file',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '$count ${count == 1 ? 'document' : 'documents'} on file',
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$outstanding outstanding · $approved approved',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color:
+                          outstanding > 0
+                              ? documentStatusColor(
+                                context,
+                                'Needs replacement',
+                              )
+                              : documentStatusColor(context, 'Approved'),
+                    ),
+                  ),
+                ],
               ),
             ),
             FilledButton.tonalIcon(
@@ -875,10 +1132,26 @@ class _ClientProfileScreenState extends State<ClientProfileScreen> {
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(fontWeight: FontWeight.w700),
                 ),
-                subtitle: Text(
-                  _documentSubtitle(doc),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                subtitle: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _documentSubtitle(doc),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 5),
+                    DocumentStatusBadge(status: doc.status),
+                    if (doc.adminNotes.trim().isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text(
+                          'Admin notes: ${doc.adminNotes.trim()}',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
                 ),
                 trailing: Icon(
                   Icons.chevron_right_rounded,

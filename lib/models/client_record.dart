@@ -10,6 +10,7 @@ class ClientRecord {
   final String notes;
   final String stage;
   final bool archived;
+  final String photoPath;
 
   /// Extended profile collected by the full client form and stored in the
   /// `profile` JSONB column. Date values (birth, passport, deadline, travel)
@@ -30,6 +31,7 @@ class ClientRecord {
     this.notes = '',
     this.stage = 'New lead',
     this.archived = false,
+    this.photoPath = '',
     this.details = const {},
     required this.updatedAt,
   });
@@ -46,6 +48,7 @@ class ClientRecord {
     'notes': notes,
     'stage': stage,
     'archived': archived,
+    'photo_path': photoPath,
     'profile': details,
     'updated_at': updatedAt.toIso8601String(),
   };
@@ -62,6 +65,7 @@ class ClientRecord {
     notes: '${j['notes'] ?? ''}',
     stage: '${j['stage'] ?? 'New lead'}',
     archived: j['archived'] == true,
+    photoPath: '${j['photo_path'] ?? ''}',
     details:
         j['profile'] is Map
             ? Map<String, dynamic>.from(j['profile'] as Map)

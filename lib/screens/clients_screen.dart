@@ -8,6 +8,7 @@ import '../services/client_repository.dart';
 import '../services/local_store.dart';
 import '../theme/glass_widgets.dart';
 import '../utils/file_export.dart';
+import '../widgets/client_avatar.dart';
 import 'applications_screen.dart';
 import 'client_form_screen.dart';
 import 'client_profile_screen.dart';
@@ -252,26 +253,11 @@ class _ClientsScreenState extends State<ClientsScreen> {
     );
   }
 
-  Widget _avatar(ClientRecord c, {double size = 46}) {
-    final scheme = Theme.of(context).colorScheme;
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: scheme.primaryContainer,
-        shape: BoxShape.circle,
-      ),
-      child: Text(
-        c.fullName.isEmpty ? '?' : c.fullName[0].toUpperCase(),
-        style: TextStyle(
-          fontWeight: FontWeight.w800,
-          fontSize: size * 0.4,
-          color: scheme.onPrimaryContainer,
-        ),
-      ),
-    );
-  }
+  Widget _avatar(ClientRecord c, {double size = 46}) => ClientAvatar(
+    photoPath: c.photoPath,
+    name: c.fullName,
+    size: size,
+  );
 
   Widget _clientRow(ClientRecord c) {
     final theme = Theme.of(context);
